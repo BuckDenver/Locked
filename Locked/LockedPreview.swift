@@ -6,3 +6,12 @@
 //
 
 import Foundation
+import SwiftUI
+
+struct LockedPreview: PreviewProvider {
+    static var previews: some View {
+        LockedView()
+            .environmentObject(AppLocker())
+            .environmentObject(ProfileManager())
+    }
+}

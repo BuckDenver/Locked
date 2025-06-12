@@ -1,0 +1,15 @@
+{
+  "originHash" : "2ee31b3e8858da063d9ddc7445d3ace7db55fa5e493767b149b15db77243129b",
+  "pins" : [
+    {
+      "identity" : "sfsymbolspickerforswiftui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alessiorubicini/SFSymbolsPickerForSwiftUI.git",
+      "state" : {
+        "revision" : "02800d8db419d0dbf6d1e6128ee517f784887d14",
+        "version" : "1.0.7"
+      }
+    }
+  ],
+  "version" : 3
+}

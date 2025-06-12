@@ -4,5 +4,119 @@
 //
 //  Created by Brandon Scott on 2025-06-11.
 //
+import SwiftUI
+import CoreNFC
+import SFSymbolsPicker
+import FamilyControls
+import ManagedSettings
 
-import Foundation
+struct LockedView: View {
+    @EnvironmentObject private var appLocker: AppLocker
+    @EnvironmentObject private var profileManager: ProfileManager
+    @StateObject private var nfcReader = NFCReader()
+    private let tagPhrase = "LOCKED-IS-GREAT"
+    
+    @State private var showWrongTagAlert = false
+    @State private var showCreateTagAlert = false
+    @State private var nfcWriteSuccess = false
+    
+    private var isLocking : Bool {
+        return appLocker.isLocking
+    }
+
+    var body: some View {
+        NavigationView {
+            GeometryReader { geometry in
+                ZStack {
+                    VStack(spacing: 0) {
+                        lockOrUnlockButton(geometry: geometry)
+                        
+                        if !isLocking {
+                            Divider()
+                            
+                            ProfilesPicker(profileManager: profileManager)
+                                .frame(height: geometry.size.height / 2)
+                                .transition(.move(edge: .bottom))
+                        }
+                    }
+                    .background(isLocking ? Color("BlockingBackground") : Color("NonBlockingBackground"))
+                }
+            }
+            .navigationBarItems(trailing: createTagButton)
+            .alert(isPresented: $showWrongTagAlert) {
+                Alert(
+                    title: Text("Not a Locked Tag"),
+                    message: Text("You can create a new Locked tag using the + button"),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+            .alert("Create Locked Tag", isPresented: $showCreateTagAlert) {
+                Button("Create") { createLockedTag() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Do you want to create a new Locked tag?")
+            }
+            .alert("Tag Creation", isPresented: $nfcWriteSuccess) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(nfcWriteSuccess ? "Locked tag created successfully!" : "Failed to create Locked tag. Please try again.")
+            }
+        }
+        .animation(.spring(), value: isLocking)
+    }
+    
+    @ViewBuilder
+    private func lockOrUnlockButton(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 8) {
+            Text(isLocking ? "Tap To Unlock" : "Tap To Lock")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.white)
+                .opacity(1)
+                .transition(.scale)
+
+            Button(action: {
+                withAnimation(.spring()) {
+                    scanTag()
+                }
+            }) {
+                Image(isLocking ? "RedIcon" : "GreenIcon")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: geometry.size.height / 3)
+            }
+            .transition(.scale)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(height: isLocking ? geometry.size.height : geometry.size.height / 2)
+        .animation(.spring(), value: isLocking)
+    }
+    
+    private func scanTag() {
+        nfcReader.scan { payload in
+            if payload == tagPhrase {
+                NSLog("Toggling lock")
+                appLocker.toggleLocking(for: profileManager.currentProfile)
+            } else {
+                showWrongTagAlert = true
+                NSLog("Wrong Tag!\nPayload: \(payload)")
+            }
+        }
+    }
+    
+    private var createTagButton: some View {
+        Button(action: {
+            showCreateTagAlert = true
+        }) {
+            Image(systemName: "plus")
+                .foregroundColor(.white)
+        }
+        .disabled(!NFCNDEFReaderSession.readingAvailable)
+    }
+    
+    private func createLockedTag() {
+        nfcReader.write(tagPhrase) { success in
+            nfcWriteSuccess = success
+            showCreateTagAlert = false
+        }
+    }
+}
