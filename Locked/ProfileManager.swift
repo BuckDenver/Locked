@@ -19,27 +19,53 @@ class ProfileManager: ObservableObject {
     }
     
     var currentProfile: Profile {
-        (profiles.first(where: { $0.id == currentProfileId }) ?? profiles.first(where: { $0.name == "Default" }))!
+        (profiles.first(where: { $0.id == currentProfileId }) ?? profiles.first(where: { $0.name == "Locked" }))!
     }
     
     func loadProfiles() {
-        if let savedProfiles = UserDefaults.standard.data(forKey: "savedProfiles"),
-           let decodedProfiles = try? JSONDecoder().decode([Profile].self, from: savedProfiles) {
-            profiles = decodedProfiles
+        // Attempt to load at least three saved profiles
+        if let data = UserDefaults.standard.data(forKey: "savedProfiles"),
+           let decoded = try? JSONDecoder().decode([Profile].self, from: data),
+           decoded.count >= 3 {
+            profiles = decoded
+            
+            // Migrate any old default icons to updated symbols
+            var didUpdateIcons = false
+            for index in profiles.indices {
+                switch profiles[index].name {
+                case "Personal" where profiles[index].icon != "person.fill":
+                    profiles[index].icon = "person.fill"
+                    didUpdateIcons = true
+                case "Work" where profiles[index].icon != "briefcase.fill":
+                    profiles[index].icon = "briefcase.fill"
+                    didUpdateIcons = true
+                case "School" where profiles[index].icon != "graduationcap.fill":
+                    profiles[index].icon = "graduationcap.fill"
+                    didUpdateIcons = true
+                default:
+                    break
+                }
+            }
+            if didUpdateIcons {
+                saveProfiles()
+            }
         } else {
-            // Create a default profile if no profiles are saved
-            let defaultProfile = Profile(name: "Default", appTokens: [], categoryTokens: [], icon: "bell.slash")
-            profiles = [defaultProfile]
-            currentProfileId = defaultProfile.id
+            // Seed three default profiles when no valid saved set exists
+            let personalProfile = Profile(name: "Personal", appTokens: [], categoryTokens: [], icon: "person.fill")
+            let workProfile     = Profile(name: "Work",     appTokens: [], categoryTokens: [], icon: "briefcase.fill")
+            let schoolProfile   = Profile(name: "School",   appTokens: [], categoryTokens: [], icon: "graduationcap.fill")
+            profiles = [personalProfile, workProfile, schoolProfile]
+            currentProfileId = personalProfile.id
+            saveProfiles()
         }
-        
-        if let savedProfileId = UserDefaults.standard.string(forKey: "currentProfileId"),
-           let uuid = UUID(uuidString: savedProfileId) {
+
+        // Restore or initialize currentProfileId
+        if let savedId = UserDefaults.standard.string(forKey: "currentProfileId"),
+           let uuid = UUID(uuidString: savedId),
+           profiles.contains(where: { $0.id == uuid }) {
             currentProfileId = uuid
-            NSLog("Found currentProfile: \(uuid)")
         } else {
             currentProfileId = profiles.first?.id
-            NSLog("No stored ID, using \(currentProfileId?.uuidString ?? "NONE")")
         }
     }
     
@@ -151,12 +177,15 @@ class ProfileManager: ObservableObject {
     
     private func ensureDefaultProfile() {
         if profiles.isEmpty {
-            let defaultProfile = Profile(name: "Default", appTokens: [], categoryTokens: [], icon: "bell.slash")
-            profiles.append(defaultProfile)
-            currentProfileId = defaultProfile.id
+            // Initialize three default profiles on first launch
+            let personalProfile = Profile(name: "Personal", appTokens: [], categoryTokens: [], icon: "person.fill")
+            let workProfile     = Profile(name: "Work",     appTokens: [], categoryTokens: [], icon: "briefcase.fill")
+            let schoolProfile   = Profile(name: "School",   appTokens: [], categoryTokens: [], icon: "graduationcap.fill")
+            profiles = [personalProfile, workProfile, schoolProfile]
+            currentProfileId = personalProfile.id
             saveProfiles()
         } else if currentProfileId == nil {
-            if let defaultProfile = profiles.first(where: { $0.name == "Default" }) {
+            if let defaultProfile = profiles.first(where: { $0.name == "Locked" }) {
                 currentProfileId = defaultProfile.id
             } else {
                 currentProfileId = profiles.first?.id
@@ -174,7 +203,7 @@ struct Profile: Identifiable, Codable {
     var icon: String // New property for icon
 
     var isDefault: Bool {
-        name == "Default"
+        name == "Locked"
     }
 
     // New initializer to support default icon

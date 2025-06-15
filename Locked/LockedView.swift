@@ -28,21 +28,39 @@ struct LockedView: View {
         NavigationView {
             GeometryReader { geometry in
                 ZStack {
-                    VStack(spacing: 0) {
-                        lockOrUnlockButton(geometry: geometry)
-                        
-                        if !isLocking {
-                            Divider()
-                            
-                            ProfilesPicker(profileManager: profileManager)
-                                .frame(height: geometry.size.height / 2)
-                                .transition(.move(edge: .bottom))
+                    // Background fills whole screen
+                    (isLocking ? Color("BlockingBackground") : Color("NonBlockingBackground"))
+                        .ignoresSafeArea()
+
+                    // Lock button layer, centered
+                    Group {
+                        if isLocking {
+                            lockOrUnlockButton(geometry: geometry)
+                        } else {
+                            lockOrUnlockButton(geometry: geometry)
                         }
                     }
-                    .background(isLocking ? Color("BlockingBackground") : Color("NonBlockingBackground"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(y: -geometry.size.height * 0.15)
+                    .transition(.opacity)
+                    .animation(.spring(), value: isLocking)
+
+                    // Profiles strip layer at bottom when unlocked
+                    if !isLocking {
+                        ProfilesPicker(profileManager: profileManager)
+                            .frame(height: geometry.size.height / 2)
+                            .position(x: geometry.size.width / 2,
+                                      y: geometry.size.height * 1)
+                    }
                 }
             }
-            .navigationBarItems(trailing: createTagButton)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if !isLocking {
+                        createTagButton
+                    }
+                }
+            }
             .alert(isPresented: $showWrongTagAlert) {
                 Alert(
                     title: Text("Not a Locked Tag"),
@@ -62,7 +80,6 @@ struct LockedView: View {
                 Text(nfcWriteSuccess ? "Locked tag created successfully!" : "Failed to create Locked tag. Please try again.")
             }
         }
-        .animation(.spring(), value: isLocking)
     }
     
     @ViewBuilder
@@ -72,7 +89,6 @@ struct LockedView: View {
                 .font(.system(size: 32, weight: .bold))
                 .foregroundColor(.white)
                 .opacity(1)
-                .transition(.scale)
 
             Button(action: {
                 withAnimation(.spring()) {
@@ -84,11 +100,8 @@ struct LockedView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(height: geometry.size.height / 3)
             }
-            .transition(.scale)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .frame(height: isLocking ? geometry.size.height : geometry.size.height / 2)
-        .animation(.spring(), value: isLocking)
+        .id(isLocking)
     }
     
     private func scanTag() {
@@ -107,7 +120,8 @@ struct LockedView: View {
         Button(action: {
             showCreateTagAlert = true
         }) {
-            Image(systemName: "plus")
+            Text("New Lock")
+                .bold()
                 .foregroundColor(.white)
         }
         .disabled(!NFCNDEFReaderSession.readingAvailable)

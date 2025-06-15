@@ -10,7 +10,6 @@ import FamilyControls
 
 struct ProfilesPicker: View {
     @ObservedObject var profileManager: ProfileManager
-    @State private var showAddProfileView = false
     @State private var editingProfile: Profile?
     
     var body: some View {
@@ -19,43 +18,32 @@ struct ProfilesPicker: View {
                 .font(.headline)
                 .padding(.horizontal)
                 .padding(.top)
+
+            Text("Long Press A Profile To Edit")
+                .font(.subheadline)
+                .foregroundColor(Color(.darkGray))
+                .padding(.horizontal)
+                .padding(.bottom, 8)
             
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 10)], spacing: 10) {
-                    ForEach(profileManager.profiles) { profile in
-                        ProfileCell(profile: profile, isSelected: profile.id == profileManager.currentProfileId)
-                            .onTapGesture {
-                                profileManager.setCurrentProfile(id: profile.id)
-                            }
-                            .onLongPressGesture {
-                                editingProfile = profile
-                            }
-                    }
-                    
-                    ProfileCellBase(name: "New", icon: "plus", appsBlocked: nil, categoriesBlocked: nil, isSelected: false, isDashed: true, hasDivider: false)
+            HStack(spacing: 30) {
+                ForEach(profileManager.profiles) { profile in
+                    ProfileCell(profile: profile, isSelected: profile.id == profileManager.currentProfileId)
                         .onTapGesture {
-                            showAddProfileView = true
+                            profileManager.setCurrentProfile(id: profile.id)
+                        }
+                        .onLongPressGesture {
+                            editingProfile = profile
                         }
                 }
-                .padding(.horizontal, 10)
             }
             
             Spacer()
-            
-            Text("Long press on a profile to edit")
-                .font(.caption2)
-                .foregroundColor(.secondary.opacity(0.7))
-                .padding(.bottom, 8)
         }
+        .frame(maxWidth: .infinity)
         .background(Color("ProfileSectionBackground"))
         .sheet(item: $editingProfile) { profile in
             ProfileFormView(profile: profile, profileManager: profileManager) {
                 editingProfile = nil
-            }
-        }
-        .sheet(isPresented: $showAddProfileView) {
-            ProfileFormView(profileManager: profileManager) {
-                showAddProfileView = false
             }
         }
     }
