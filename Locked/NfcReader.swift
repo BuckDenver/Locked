@@ -1,4 +1,3 @@
-
 //
 //  NfcReader.swift
 //  Locked

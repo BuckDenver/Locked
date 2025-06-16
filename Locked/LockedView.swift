@@ -28,9 +28,14 @@ struct LockedView: View {
         NavigationView {
             GeometryReader { geometry in
                 ZStack {
-                    // Background fills whole screen
-                    (isLocking ? Color("BlockingBackground") : Color("NonBlockingBackground"))
-                        .ignoresSafeArea()
+                    ZStack {
+                        Color("NonBlockingBackground")
+                            .opacity(isLocking ? 0 : 1)
+                        Color("BlockingBackground")
+                            .opacity(isLocking ? 1 : 0)
+                    }
+                    .ignoresSafeArea()
+                    .animation(.easeInOut(duration: 0.5), value: isLocking)
 
                     // Lock button layer, centered
                     Group {

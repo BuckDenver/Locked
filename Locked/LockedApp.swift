@@ -1,4 +1,3 @@
-
 //
 //  LockedApp.swift
 //  Locked
