@@ -82,14 +82,6 @@ struct ProfileFormView: View {
                     }
                 }
                 
-                if profile != nil {
-                    Section {
-                        Button(action: { showDeleteConfirmation = true }) {
-                            Text("Delete Profile")
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
             }
             .navigationTitle(profile == nil ? "Add Profile" : "Edit Profile")
             .navigationBarItems(
@@ -108,19 +100,6 @@ struct ProfileFormView: View {
                             showAppSelection = false
                         })
                 }
-            }
-            .alert(isPresented: $showDeleteConfirmation) {
-                Alert(
-                    title: Text("Delete Profile"),
-                    message: Text("Are you sure you want to delete this profile?"),
-                    primaryButton: .destructive(Text("Delete")) {
-                        if let profile = profile {
-                            profileManager.deleteProfile(withId: profile.id)
-                        }
-                        onDismiss()
-                    },
-                    secondaryButton: .cancel()
-                )
             }
         }
     }
