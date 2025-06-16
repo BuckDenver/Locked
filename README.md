@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="256" alt="Locked Lock 1" src="https://github.com/user-attachments/assets/68174233-1565-4794-8baa-9b890f8164bc" />
+  <img width="512" alt="App Icon" src="https://github.com/user-attachments/assets/1d05d4f2-48de-48ff-b3f2-2143cd48e11c" />
 </p>
 
 <p align="center">
