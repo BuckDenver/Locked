@@ -4,12 +4,5 @@
 <dict>
 	<key>CFBundleGetInfoString</key>
 	<string></string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>processing</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array/>
 </dict>
 </plist>
