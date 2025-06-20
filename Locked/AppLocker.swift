@@ -8,6 +8,7 @@ import SwiftUI
 import ManagedSettings
 import FamilyControls
 
+@MainActor
 class AppLocker: ObservableObject {
     let store = ManagedSettingsStore()
     @Published var isLocking = false

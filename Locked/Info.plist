@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleGetInfoString</key>
-	<string></string>
+	<string>Your info string here</string>
 </dict>
 </plist>
