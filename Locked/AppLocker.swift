@@ -48,9 +48,20 @@ class AppLocker: ObservableObject {
     
     func applyLockingSettings(for profile: Profile) {
         if isLocking {
-            NSLog("Locking \(profile.appTokens.count) apps")
-            store.shield.applications = profile.appTokens.isEmpty ? nil : profile.appTokens
-            store.shield.applicationCategories = profile.categoryTokens.isEmpty ? ShieldSettings.ActivityCategoryPolicy.none : .specific(profile.categoryTokens)
+            if profile.isAllowListMode {
+                NSLog("Allow List Mode: Allowing only \(profile.appTokens.count) apps")
+                store.shield.applications = nil 
+
+                if profile.appTokens.isEmpty {
+                    store.shield.applicationCategories = .all()
+                } else {
+                    store.shield.applicationCategories = .all(except: profile.appTokens)
+                }
+            } else {
+                NSLog("Locking \(profile.appTokens.count) apps")
+                store.shield.applications = profile.appTokens.isEmpty ? nil : profile.appTokens
+                store.shield.applicationCategories = profile.categoryTokens.isEmpty ? ShieldSettings.ActivityCategoryPolicy.none : .specific(profile.categoryTokens)
+            }
         } else {
             store.shield.applications = nil
             store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.none

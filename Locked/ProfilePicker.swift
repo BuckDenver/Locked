@@ -19,7 +19,7 @@ struct ProfilesPicker: View {
                 .padding(.horizontal)
                 .padding(.top)
 
-            Text("Long Press A Profile To Edit")
+            Text("Long press to edit")
                 .font(.subheadline)
                 .foregroundColor(Color(.darkGray))
                 .padding(.horizontal)
@@ -55,6 +55,7 @@ struct ProfileCellBase: View {
     let appsBlocked: Int?
     let categoriesBlocked: Int?
     let isSelected: Bool
+    let isAllowListMode: Bool?
     var isDashed: Bool = false
     var hasDivider: Bool = true
 
@@ -72,9 +73,16 @@ struct ProfileCellBase: View {
                 .fontWeight(.medium)
                 .lineLimit(1)
             
-            if let apps = appsBlocked, let categories = categoriesBlocked {
-                Text("A: \(apps) | C: \(categories)")
-                    .font(.system(size: 10))
+            if let apps = appsBlocked, let isAllowMode = isAllowListMode {
+                if isAllowMode {
+                    Text("Allow: \(apps)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.green)
+                } else if let categories = categoriesBlocked {
+                    Text("Block: \(apps) | C: \(categories)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
             }
         }
         .frame(width: 90, height: 90)
@@ -101,7 +109,8 @@ struct ProfileCell: View {
             icon: profile.icon,
             appsBlocked: profile.appTokens.count,
             categoriesBlocked: profile.categoryTokens.count,
-            isSelected: isSelected
+            isSelected: isSelected,
+            isAllowListMode: profile.isAllowListMode
         )
     }
 }
