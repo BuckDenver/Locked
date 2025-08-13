@@ -29,31 +29,31 @@ class ProfileManager: ObservableObject {
            decoded.count >= 3 {
             profiles = decoded
             
-            // Migrate any old default icons to updated symbols
-            var didUpdateIcons = false
+            // Migrate any old default icons to updated symbols and ensure isAllowListMode exists
+            var didUpdate = false
             for index in profiles.indices {
                 switch profiles[index].name {
                 case "Personal" where profiles[index].icon != "person.fill":
                     profiles[index].icon = "person.fill"
-                    didUpdateIcons = true
+                    didUpdate = true
                 case "Work" where profiles[index].icon != "briefcase.fill":
                     profiles[index].icon = "briefcase.fill"
-                    didUpdateIcons = true
+                    didUpdate = true
                 case "School" where profiles[index].icon != "graduationcap.fill":
                     profiles[index].icon = "graduationcap.fill"
-                    didUpdateIcons = true
+                    didUpdate = true
                 default:
                     break
                 }
             }
-            if didUpdateIcons {
+            if didUpdate {
                 saveProfiles()
             }
         } else {
             // Seed three default profiles when no valid saved set exists
-            let personalProfile = Profile(name: "Personal", appTokens: [], categoryTokens: [], icon: "person.fill")
-            let workProfile     = Profile(name: "Work",     appTokens: [], categoryTokens: [], icon: "briefcase.fill")
-            let schoolProfile   = Profile(name: "School",   appTokens: [], categoryTokens: [], icon: "graduationcap.fill")
+            let personalProfile = Profile(name: "Personal", appTokens: [], categoryTokens: [], icon: "person.fill", isAllowListMode: false)
+            let workProfile     = Profile(name: "Work",     appTokens: [], categoryTokens: [], icon: "briefcase.fill", isAllowListMode: false)
+            let schoolProfile   = Profile(name: "School",   appTokens: [], categoryTokens: [], icon: "graduationcap.fill", isAllowListMode: false)
             profiles = [personalProfile, workProfile, schoolProfile]
             currentProfileId = personalProfile.id
             saveProfiles()
@@ -76,8 +76,8 @@ class ProfileManager: ObservableObject {
         UserDefaults.standard.set(currentProfileId?.uuidString, forKey: "currentProfileId")
     }
     
-    func addProfile(name: String, icon: String = "bell.slash") {
-        let newProfile = Profile(name: name, appTokens: [], categoryTokens: [], icon: icon)
+    func addProfile(name: String, icon: String = "bell.slash", isAllowListMode: Bool = false) {
+        let newProfile = Profile(name: name, appTokens: [], categoryTokens: [], icon: icon, isAllowListMode: isAllowListMode)
         profiles.append(newProfile)
         currentProfileId = newProfile.id
         saveProfiles()
@@ -130,10 +130,13 @@ class ProfileManager: ObservableObject {
         saveProfiles()
     }
     
-    func updateCurrentProfile(name: String, iconName: String) {
+    func updateCurrentProfile(name: String, iconName: String, isAllowListMode: Bool? = nil) {
         if let index = profiles.firstIndex(where: { $0.id == currentProfileId }) {
             profiles[index].name = name
             profiles[index].icon = iconName
+            if let isAllowListMode = isAllowListMode {
+                profiles[index].isAllowListMode = isAllowListMode
+            }
             saveProfiles()
         }
     }
@@ -151,7 +154,8 @@ class ProfileManager: ObservableObject {
         name: String? = nil,
         appTokens: Set<ApplicationToken>? = nil,
         categoryTokens: Set<ActivityCategoryToken>? = nil,
-        icon: String? = nil
+        icon: String? = nil,
+        isAllowListMode: Bool? = nil
     ) {
         if let index = profiles.firstIndex(where: { $0.id == id }) {
             if let name = name {
@@ -166,6 +170,9 @@ class ProfileManager: ObservableObject {
             if let icon = icon {
                 profiles[index].icon = icon
             }
+            if let isAllowListMode = isAllowListMode {
+                profiles[index].isAllowListMode = isAllowListMode
+            }
             
             if currentProfileId == id {
                 currentProfileId = profiles[index].id
@@ -178,9 +185,9 @@ class ProfileManager: ObservableObject {
     private func ensureDefaultProfile() {
         if profiles.isEmpty {
             // Initialize three default profiles on first launch
-            let personalProfile = Profile(name: "Personal", appTokens: [], categoryTokens: [], icon: "person.fill")
-            let workProfile     = Profile(name: "Work",     appTokens: [], categoryTokens: [], icon: "briefcase.fill")
-            let schoolProfile   = Profile(name: "School",   appTokens: [], categoryTokens: [], icon: "graduationcap.fill")
+            let personalProfile = Profile(name: "Personal", appTokens: [], categoryTokens: [], icon: "person.fill", isAllowListMode: false)
+            let workProfile     = Profile(name: "Work",     appTokens: [], categoryTokens: [], icon: "briefcase.fill", isAllowListMode: false)
+            let schoolProfile   = Profile(name: "School",   appTokens: [], categoryTokens: [], icon: "graduationcap.fill", isAllowListMode: false)
             profiles = [personalProfile, workProfile, schoolProfile]
             currentProfileId = personalProfile.id
             saveProfiles()
@@ -201,17 +208,18 @@ struct Profile: Identifiable, Codable {
     var appTokens: Set<ApplicationToken>
     var categoryTokens: Set<ActivityCategoryToken>
     var icon: String // New property for icon
+    var isAllowListMode: Bool // Property for allow/lock mode
 
     var isDefault: Bool {
         name == "Locked"
     }
 
-    // New initializer to support default icon
-    init(name: String, appTokens: Set<ApplicationToken>, categoryTokens: Set<ActivityCategoryToken>, icon: String = "bell.slash") {
+    init(name: String, appTokens: Set<ApplicationToken>, categoryTokens: Set<ActivityCategoryToken>, icon: String = "bell.slash", isAllowListMode: Bool = false) {
         self.id = UUID()
         self.name = name
         self.appTokens = appTokens
         self.categoryTokens = categoryTokens
         self.icon = icon
+        self.isAllowListMode = isAllowListMode
     }
 }
