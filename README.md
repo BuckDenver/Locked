@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://testflight.apple.com/join/wpdy79ep">Download From TestFlight Here</a>
+  <a href="https://apps.apple.com/ca/app/locked/id6747144848">Download From App Store Here</a>
 </p>
 
 <p align="center">
