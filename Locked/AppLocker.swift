@@ -35,13 +35,38 @@ class AppLocker: ObservableObject {
         }
     }
     
-    func toggleLocking(for profile: Profile) {
+    func startSessionWithNFC(for profile: Profile) {
         guard isAuthorized else {
             print("Not authorized to lock apps")
             return
         }
+        guard isLocking == false else { return }
         
-        isLocking.toggle()
+        isLocking = true
+        saveLockingState()
+        applyLockingSettings(for: profile)
+    }
+    
+    func startSessionManually(for profile: Profile) {
+        guard isAuthorized else {
+            print("Not authorized to lock apps")
+            return
+        }
+        guard isLocking == false else { return }
+        
+        isLocking = true
+        saveLockingState()
+        applyLockingSettings(for: profile)
+    }
+
+    func endSession(for profile: Profile) {
+        guard isAuthorized else {
+            print("Not authorized to unlock apps")
+            return
+        }
+        guard isLocking == true else { return }
+        
+        isLocking = false
         saveLockingState()
         applyLockingSettings(for: profile)
     }

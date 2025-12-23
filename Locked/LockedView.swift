@@ -19,6 +19,8 @@ struct LockedView: View {
     @State private var showWrongTagAlert = false
     @State private var showCreateTagAlert = false
     @State private var nfcWriteSuccess = false
+    @State private var showStartSessionWarning = false
+    @State private var showSessionStartOptions = false
     
     private var isLocking : Bool {
         return appLocker.isLocking
@@ -84,6 +86,17 @@ struct LockedView: View {
             } message: {
                 Text(nfcWriteSuccess ? "Locked tag created successfully!" : "Failed to create Locked tag. Please try again.")
             }
+            .alert("Lock Without NFC?", isPresented: $showStartSessionWarning) {
+                Button("Lock") {
+                    appLocker.startSessionManually(for: profileManager.currentProfile)
+                    showStartSessionWarning = false
+                }
+                Button("Cancel", role: .cancel) {
+                    showStartSessionWarning = false
+                }
+            } message: {
+                Text("Make sure you have access to your NFC tag. You will not be able to unlock without it.")
+            }
         }
     }
     
@@ -97,7 +110,7 @@ struct LockedView: View {
 
             Button(action: {
                 withAnimation(.spring()) {
-                    scanTag()
+                    onPrimaryTap()
                 }
             }) {
                 Image(isLocking ? "RedIcon" : "GreenIcon")
@@ -105,15 +118,43 @@ struct LockedView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(height: geometry.size.height / 3)
             }
+            if !isLocking {
+                Button("Lock Without NFC") {
+                    showStartSessionWarning = true
+                }
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.white)
+                .padding(.top, 16)
+            }
         }
         .id(isLocking)
     }
     
-    private func scanTag() {
+    private func onPrimaryTap() {
+        if isLocking {
+            scanTagForUnlock()
+        } else {
+            scanTagForStart()
+        }
+    }
+
+    private func scanTagForUnlock() {
         nfcReader.scan { payload in
             if payload == tagPhrase {
-                NSLog("Toggling lock")
-                appLocker.toggleLocking(for: profileManager.currentProfile)
+                NSLog("Ending session via NFC")
+                appLocker.endSession(for: profileManager.currentProfile)
+            } else {
+                showWrongTagAlert = true
+                NSLog("Wrong Tag!\nPayload: \(payload)")
+            }
+        }
+    }
+    
+    private func scanTagForStart() {
+        nfcReader.scan { payload in
+            if payload == tagPhrase {
+                NSLog("Starting session via NFC")
+                appLocker.startSessionWithNFC(for: profileManager.currentProfile)
             } else {
                 showWrongTagAlert = true
                 NSLog("Wrong Tag!\nPayload: \(payload)")
