@@ -118,7 +118,7 @@ struct LockedView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(height: geometry.size.height / 3)
             }
-            if !isLocking {
+            if !isLocking && appLocker.hasUsedNFC {
                 Button("Lock Without NFC") {
                     showStartSessionWarning = true
                 }
