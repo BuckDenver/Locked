@@ -166,7 +166,7 @@ struct LockedView: View {
         Button(action: {
             showCreateTagAlert = true
         }) {
-            Text("New Lock")
+            Text("Register Tag")
                 .bold()
                 .foregroundColor(.white)
         }
