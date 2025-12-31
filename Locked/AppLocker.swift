@@ -13,9 +13,11 @@ class AppLocker: ObservableObject {
     let store = ManagedSettingsStore()
     @Published var isLocking = false
     @Published var isAuthorized = false
-    
+    @Published var hasUsedNFC = false
+
     init() {
         loadLockingState()
+        loadNFCUsageState()
         Task {
             await requestAuthorization()
         }
@@ -41,7 +43,13 @@ class AppLocker: ObservableObject {
             return
         }
         guard isLocking == false else { return }
-        
+
+        // Record that the user has successfully used NFC
+        if !hasUsedNFC {
+            hasUsedNFC = true
+            saveNFCUsageState()
+        }
+
         isLocking = true
         saveLockingState()
         applyLockingSettings(for: profile)
@@ -96,8 +104,16 @@ class AppLocker: ObservableObject {
     private func loadLockingState() {
         isLocking = UserDefaults.standard.bool(forKey: "isLocking")
     }
-    
+
     private func saveLockingState() {
         UserDefaults.standard.set(isLocking, forKey: "isLocking")
+    }
+
+    private func loadNFCUsageState() {
+        hasUsedNFC = UserDefaults.standard.bool(forKey: "hasUsedNFC")
+    }
+
+    private func saveNFCUsageState() {
+        UserDefaults.standard.set(hasUsedNFC, forKey: "hasUsedNFC")
     }
 }
