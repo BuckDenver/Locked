@@ -195,6 +195,28 @@ struct OnboardingView: View {
                     .cornerRadius(8)
             }
             
+            // Background tip
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundColor(.blue)
+                    Text("Tip")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.blue)
+                    Spacer()
+                }
+                
+                Text("This app works best when kept in the background. Avoid force-quitting it to ensure app locking continues to work properly.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding()
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(12)
+            .padding(.horizontal, 40)
+            
             Spacer()
             
             VStack(spacing: 16) {
