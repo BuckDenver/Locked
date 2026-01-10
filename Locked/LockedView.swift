@@ -24,6 +24,7 @@ struct LockedView: View {
     @State private var showStartSessionWarning = false
     @State private var showSessionStartOptions = false
     @State private var showQuickLockOptions = false
+    @State private var showSettings = false
     @State private var snoozeTimer: Timer?
     @State private var currentTime = Date()
     @State private var countdownTimer: Timer?
@@ -79,6 +80,11 @@ struct LockedView: View {
                 if isLocking && appLocker.timerEndDate != nil {
                     startCountdownTimer()
                 }
+                
+                // Restart snooze timer if snooze is active
+                if snoozeManager.isSnoozed && snoozeManager.snoozeTimeRemaining > 0 {
+                    restartSnoozeTimer()
+                }
             }
             .onChange(of: appLocker.timerEndDate) { oldValue, newValue in
                 // Start countdown when timer is set
@@ -99,11 +105,20 @@ struct LockedView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if !isLocking && !snoozeManager.isSnoozed {
-                        Button(action: {
-                            showQuickLockOptions = true
-                        }) {
-                            Image(systemName: "timer")
-                                .foregroundColor(.primary)
+                        HStack(spacing: 16) {
+                            Button(action: {
+                                showQuickLockOptions = true
+                            }) {
+                                Image(systemName: "timer")
+                                    .foregroundColor(.primary)
+                            }
+                            
+                            Button(action: {
+                                showSettings = true
+                            }) {
+                                Image(systemName: "gearshape")
+                                    .foregroundColor(.primary)
+                            }
                         }
                     }
                 }
@@ -149,6 +164,10 @@ struct LockedView: View {
                     profileManager: profileManager
                 )
             }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environmentObject(snoozeManager)
+            }
         }
     }
     
@@ -182,7 +201,7 @@ struct LockedView: View {
                         // Show snooze option when locked
                         if isLocking {
                             if snoozeManager.canSnooze {
-                                Button("Unlock for 5 Minutes (\(snoozeManager.snoozesRemaining) left today)") {
+                                Button("Unlock for \(formatDuration(snoozeManager.snoozeDuration)) (\(snoozeManager.snoozesRemaining) left today)") {
                                     startSnooze()
                                 }
                                 .font(.system(size: 18, weight: .medium))
@@ -359,8 +378,8 @@ struct LockedView: View {
         // Temporarily unlock the apps (keeping timer intact)
         appLocker.temporaryUnlock(for: profileManager.currentProfile)
         
-        // Set snooze state in shared manager
-        snoozeManager.startSnooze(duration: 300)
+        // Set snooze state in shared manager (uses custom duration)
+        snoozeManager.startSnooze()
         
         // Invalidate any existing timer
         snoozeTimer?.invalidate()
@@ -378,7 +397,7 @@ struct LockedView: View {
         // Send notification
         let content = UNMutableNotificationContent()
         content.title = "Snooze Started"
-        content.body = "Apps unlocked for 5 minutes"
+        content.body = "Apps unlocked for \(formatDuration(snoozeManager.snoozeDuration))"
         content.sound = .default
         
         let request = UNNotificationRequest(
@@ -389,7 +408,7 @@ struct LockedView: View {
         
         UNUserNotificationCenter.current().add(request)
         
-        NSLog("⏰ Snooze timer started for 5 minutes")
+        NSLog("⏰ Snooze timer started for \(snoozeManager.snoozeDuration) seconds")
     }
     
     private func endSnooze() {
@@ -419,10 +438,45 @@ struct LockedView: View {
         NSLog("⏰ Snooze timer ended - re-locking apps")
     }
     
+    private func restartSnoozeTimer() {
+        // Make sure apps are unlocked
+        appLocker.temporaryUnlock(for: profileManager.currentProfile)
+        
+        // Invalidate any existing timer
+        snoozeTimer?.invalidate()
+        
+        // Start countdown timer (updates every second)
+        snoozeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] _ in
+            let newTime = snoozeManager.snoozeTimeRemaining - 1
+            snoozeManager.updateTimeRemaining(newTime)
+            
+            if newTime <= 0 {
+                endSnooze()
+            }
+        }
+        
+        NSLog("⏰ Snooze timer restarted with \(snoozeManager.snoozeTimeRemaining) seconds remaining")
+    }
+    
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds) / 60
+        if minutes < 60 {
+            return minutes == 1 ? "1 Minute" : "\(minutes) Minutes"
+        } else {
+            let hours = minutes / 60
+            let remainingMinutes = minutes % 60
+            if remainingMinutes == 0 {
+                return hours == 1 ? "1 Hour" : "\(hours) Hours"
+            } else {
+                return "\(hours)h \(remainingMinutes)m"
+            }
+        }
     }
     
     // MARK: - Countdown Timer Functions
