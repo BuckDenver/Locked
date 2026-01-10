@@ -22,13 +22,9 @@ struct OnboardingView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.6)]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Background - dynamic color that adapts to light/dark mode
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 if currentStep == 0 {
@@ -62,16 +58,16 @@ struct OnboardingView: View {
             
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 100))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             
             Text("Welcome to Locked")
                 .font(.system(size: 36, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
             
             Text("Take control of your app usage with NFC-powered app locking")
                 .font(.system(size: 18))
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -84,10 +80,10 @@ struct OnboardingView: View {
             }) {
                 Text("Get Started")
                     .font(.headline)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.white)
+                    .background(Color.blue)
                     .cornerRadius(12)
             }
             .padding(.horizontal, 40)
@@ -103,11 +99,11 @@ struct OnboardingView: View {
             
             Image(systemName: "wave.3.right.circle.fill")
                 .font(.system(size: 80))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             
             Text("Why NFC?")
                 .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             
             VStack(alignment: .leading, spacing: 20) {
                 FeatureRow(
@@ -140,10 +136,10 @@ struct OnboardingView: View {
                 }) {
                     Text("Set Up NFC Tag")
                         .font(.headline)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.white)
+                        .background(Color.blue)
                         .cornerRadius(12)
                 }
                 
@@ -154,7 +150,7 @@ struct OnboardingView: View {
                 }) {
                     Text("Back")
                         .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(.horizontal, 40)
@@ -170,17 +166,17 @@ struct OnboardingView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.2))
+                    .fill(Color.primary.opacity(0.1))
                     .frame(width: 160, height: 160)
                 
-                Image(systemName: "nfc")
+                Image(systemName: "wave.3.right")
                     .font(.system(size: 80))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
             }
             
             Text("Set Up Your NFC Tag")
                 .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
             
             VStack(alignment: .leading, spacing: 16) {
                 InstructionRow(number: 1, text: "Get an NFC sticker or card")
@@ -193,9 +189,9 @@ struct OnboardingView: View {
             if !NFCNDEFReaderSession.readingAvailable {
                 Text("⚠️ NFC is not available on this device")
                     .font(.caption)
-                    .foregroundColor(.yellow)
+                    .foregroundColor(.orange)
                     .padding()
-                    .background(Color.black.opacity(0.3))
+                    .background(Color.orange.opacity(0.1))
                     .cornerRadius(8)
             }
             
@@ -210,10 +206,10 @@ struct OnboardingView: View {
                         Text("Program Tag")
                     }
                     .font(.headline)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.white)
+                    .background(Color.blue)
                     .cornerRadius(12)
                 }
                 .disabled(!NFCNDEFReaderSession.readingAvailable)
@@ -225,7 +221,7 @@ struct OnboardingView: View {
                 }) {
                     Text("Back")
                         .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(.horizontal, 40)
@@ -244,17 +240,17 @@ struct OnboardingView: View {
             HStack(alignment: .top, spacing: 16) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                     .frame(width: 30)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                     
                     Text(description)
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -268,17 +264,17 @@ struct OnboardingView: View {
             HStack(spacing: 16) {
                 ZStack {
                     Circle()
-                        .fill(Color.white.opacity(0.3))
+                        .fill(Color.primary.opacity(0.15))
                         .frame(width: 32, height: 32)
                     
                     Text("\(number)")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                 }
                 
                 Text(text)
                     .font(.body)
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                 
                 Spacer()
             }

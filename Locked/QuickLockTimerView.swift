@@ -17,7 +17,7 @@ struct QuickLockTimerView: View {
     @State private var selectedMinutes: Int = 0
     
     let hourOptions = Array(0...23)
-    let minuteOptions = [0, 15, 30, 45]
+    let minuteOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
     
     var totalMinutes: Int {
         selectedHours * 60 + selectedMinutes
@@ -132,12 +132,14 @@ struct QuickLockTimerView: View {
     private func startQuickLock() {
         guard totalMinutes > 0 else { return }
         
-        // Start the lock
-        appLocker.startSessionManually(for: profileManager.currentProfile)
-        
-        // Schedule notification for when timer ends
+        // Calculate end date
         let endDate = Date().addingTimeInterval(TimeInterval(totalMinutes * 60))
         
+        // Start the lock and save the timer end date
+        appLocker.startSessionManually(for: profileManager.currentProfile)
+        appLocker.setTimerEndDate(endDate)
+        
+        // Schedule notification for when timer ends
         let content = UNMutableNotificationContent()
         content.title = "Lock Timer Ended"
         content.body = "Your \(durationString) lock timer has expired. Open the app to unlock."

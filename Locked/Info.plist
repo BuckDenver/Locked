@@ -4,5 +4,14 @@
 <dict>
 	<key>CFBundleGetInfoString</key>
 	<string>Your info string here</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.locked.schedule-check</string>
+	</array>
 </dict>
 </plist>
