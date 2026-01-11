@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "Unlocked Lock.png",
+      "filename" : "Locked Lock Black.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "Unlocked Lock 1.png",
+      "filename" : "Locked Lock Black 1.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "Unlocked Lock 2.png",
+      "filename" : "Locked Lock Black 2.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
