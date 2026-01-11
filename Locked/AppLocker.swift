@@ -21,9 +21,13 @@ class AppLocker: ObservableObject {
         loadLockingState()
         loadNFCUsageState()
         loadTimerEndDate()
-        Task {
-            await requestAuthorization()
-        }
+        // Check authorization status without requesting
+        checkAuthorizationStatus()
+    }
+    
+    func checkAuthorizationStatus() {
+        let status = AuthorizationCenter.shared.authorizationStatus
+        self.isAuthorized = (status == .approved)
     }
     
     func requestAuthorization() async {

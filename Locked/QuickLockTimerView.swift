@@ -17,7 +17,7 @@ struct QuickLockTimerView: View {
     @State private var selectedMinutes: Int = 0
     
     let hourOptions = Array(0...23)
-    let minuteOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+    let minuteOptions = Array(0...59)
     
     var totalMinutes: Int {
         selectedHours * 60 + selectedMinutes

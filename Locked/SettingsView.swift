@@ -16,14 +16,14 @@ struct SettingsView: View {
             Form {
                 Section {
                     Picker("Snooze Duration", selection: $snoozeManager.snoozeDuration) {
-                        Text("5 minutes").tag(300.0)
-                        Text("10 minutes").tag(600.0)
-                        Text("15 minutes").tag(900.0)
+                        ForEach(1...15, id: \.self) { minutes in
+                            Text("\(minutes) minute\(minutes == 1 ? "" : "s")").tag(Double(minutes * 60))
+                        }
                     }
                     
                     Stepper("Max Snoozes Per Day: \(snoozeManager.maxSnoozesPerDay)", 
                             value: $snoozeManager.maxSnoozesPerDay, 
-                            in: 1...5)
+                            in: 1...10)
                     
                     HStack {
                         Text("Snoozes Used Today")

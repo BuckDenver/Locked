@@ -4,10 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:WHATS_NEW.md">
-   </FileRef>
-   <FileRef
-      location = "group:SettingsView.swift">
-   </FileRef>
 </Workspace>

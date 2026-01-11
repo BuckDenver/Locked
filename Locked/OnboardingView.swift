@@ -7,16 +7,23 @@
 
 import SwiftUI
 import CoreNFC
+import UserNotifications
+import FamilyControls
 
 struct OnboardingView: View {
     @StateObject private var nfcReader = NFCReader()
     @Binding var hasCompletedOnboarding: Bool
+    @EnvironmentObject private var profileManager: ProfileManager
     
     @State private var currentStep = 0
     @State private var showNFCScanner = false
     @State private var nfcWriteSuccess = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
+    @State private var notificationsGranted = false
+    @State private var screenTimeGranted = false
+    @State private var activitySelection = FamilyActivitySelection()
+    @State private var showAppPicker = false
     
     private let tagPhrase = "LOCKED-IS-GREAT"
     
@@ -30,8 +37,12 @@ struct OnboardingView: View {
                 if currentStep == 0 {
                     welcomeStep
                 } else if currentStep == 1 {
-                    nfcExplanationStep
+                    permissionsStep
                 } else if currentStep == 2 {
+                    appSelectionStep
+                } else if currentStep == 3 {
+                    nfcExplanationStep
+                } else if currentStep == 4 {
                     nfcSetupStep
                 }
             }
@@ -91,7 +102,232 @@ struct OnboardingView: View {
         }
     }
     
-    // MARK: - Step 2: NFC Explanation
+    // MARK: - Step 2: Permissions
+    
+    private var permissionsStep: some View {
+        VStack(spacing: 30) {
+            Spacer()
+            
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 80))
+                .foregroundColor(.primary)
+            
+            Text("Enable Permissions")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.primary)
+            
+            Text("Locked needs these permissions to work properly")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            VStack(spacing: 16) {
+                // Notifications Permission
+                PermissionButton(
+                    icon: "bell.fill",
+                    title: "Notifications",
+                    description: "Get alerts when apps lock and unlock",
+                    isGranted: notificationsGranted,
+                    action: requestNotificationPermission
+                )
+                
+                // Screen Time Permission
+                PermissionButton(
+                    icon: "hourglass",
+                    title: "Screen Time",
+                    description: "Required to block and unblock apps",
+                    isGranted: screenTimeGranted,
+                    action: requestScreenTimePermission
+                )
+            }
+            .padding(.horizontal, 40)
+            
+            Spacer()
+            
+            VStack(spacing: 16) {
+                if notificationsGranted && screenTimeGranted {
+                    Button(action: {
+                        withAnimation {
+                            currentStep = 2
+                        }
+                    }) {
+                        Text("Continue")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                    }
+                } else {
+                    Text("Please enable both permissions to continue")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                
+                Button(action: {
+                    withAnimation {
+                        currentStep = 0
+                    }
+                }) {
+                    Text("Back")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 50)
+        }
+        .onAppear {
+            checkPermissions()
+        }
+    }
+    
+    // MARK: - Step 3: App Selection
+    
+    private var appSelectionStep: some View {
+        VStack(spacing: 30) {
+            Spacer()
+            
+            Image(systemName: "apps.iphone")
+                .font(.system(size: 80))
+                .foregroundColor(.primary)
+            
+            Text("Select Apps to Lock")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.primary)
+            
+            Text("Choose which apps you want to lock in your Personal profile. You can always change this later in settings.")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            // Select Apps Button
+            Button(action: {
+                showAppPicker = true
+            }) {
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                        Text("Choose Apps to Block")
+                            .font(.headline)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal, 40)
+            
+            // Selection Summary
+            if activitySelection.applicationTokens.count > 0 || activitySelection.categoryTokens.count > 0 {
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Selection Complete")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(.blue)
+                        Text("Apps Selected:")
+                            .font(.subheadline)
+                        Spacer()
+                        Text("\(activitySelection.applicationTokens.count)")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(uiColor: .secondarySystemBackground))
+                    )
+                    
+                    if !activitySelection.categoryTokens.isEmpty {
+                        HStack {
+                            Image(systemName: "square.grid.2x2.fill")
+                                .foregroundColor(.blue)
+                            Text("Categories Selected:")
+                                .font(.subheadline)
+                            Spacer()
+                            Text("\(activitySelection.categoryTokens.count)")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(uiColor: .secondarySystemBackground))
+                        )
+                    }
+                }
+                .padding(.horizontal, 40)
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "app.badge")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    
+                    Text("No apps selected yet")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Tap the button above to choose apps")
+                        .font(.caption)
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+                .padding(.horizontal, 40)
+                .padding(.vertical, 20)
+            }
+            
+            Spacer()
+            
+            VStack(spacing: 16) {
+                Button(action: {
+                    // Save selection and continue
+                    savePersonalProfile()
+                    withAnimation {
+                        currentStep = 3
+                    }
+                }) {
+                    Text("Continue")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                }
+                
+                Button(action: {
+                    withAnimation {
+                        currentStep = 1
+                    }
+                }) {
+                    Text("Back")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 50)
+        }
+        .familyActivityPicker(isPresented: $showAppPicker, selection: $activitySelection)
+    }
+    
+    // MARK: - Step 4: NFC Explanation
     
     private var nfcExplanationStep: some View {
         VStack(spacing: 30) {
@@ -101,9 +337,15 @@ struct OnboardingView: View {
                 .font(.system(size: 80))
                 .foregroundColor(.primary)
             
-            Text("Why NFC?")
+            Text("Set Up NFC Tag")
                 .font(.system(size: 32, weight: .bold))
                 .foregroundColor(.primary)
+            
+            Text("An NFC tag is required to unlock your apps. This ensures maximum security and commitment.")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
             
             VStack(alignment: .leading, spacing: 20) {
                 FeatureRow(
@@ -120,8 +362,8 @@ struct OnboardingView: View {
                 
                 FeatureRow(
                     icon: "shield.fill",
-                    title: "Secure",
-                    description: "No bypassing - requires your physical tag"
+                    title: "Maximum Security",
+                    description: "Only your physical tag can unlock apps"
                 )
             }
             .padding(.horizontal, 40)
@@ -131,10 +373,10 @@ struct OnboardingView: View {
             VStack(spacing: 16) {
                 Button(action: {
                     withAnimation {
-                        currentStep = 2
+                        currentStep = 4
                     }
                 }) {
-                    Text("Set Up NFC Tag")
+                    Text("Continue to NFC Setup")
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -145,7 +387,7 @@ struct OnboardingView: View {
                 
                 Button(action: {
                     withAnimation {
-                        currentStep = 0
+                        currentStep = 2
                     }
                 }) {
                     Text("Back")
@@ -158,7 +400,7 @@ struct OnboardingView: View {
         }
     }
     
-    // MARK: - Step 3: NFC Setup
+    // MARK: - Step 5: NFC Setup
     
     private var nfcSetupStep: some View {
         VStack(spacing: 30) {
@@ -238,7 +480,7 @@ struct OnboardingView: View {
                 
                 Button(action: {
                     withAnimation {
-                        currentStep = 1
+                        currentStep = 3
                     }
                 }) {
                     Text("Back")
@@ -252,6 +494,54 @@ struct OnboardingView: View {
     }
     
     // MARK: - Helper Views
+    
+    private struct PermissionButton: View {
+        let icon: String
+        let title: String
+        let description: String
+        let isGranted: Bool
+        let action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(isGranted ? Color.green.opacity(0.2) : Color.primary.opacity(0.1))
+                            .frame(width: 60, height: 60)
+                        
+                        Image(systemName: isGranted ? "checkmark" : icon)
+                            .font(.title2)
+                            .foregroundColor(isGranted ? .green : .primary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    
+                    Spacer()
+                    
+                    if !isGranted {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(uiColor: .secondarySystemBackground))
+                )
+            }
+            .disabled(isGranted)
+        }
+    }
     
     private struct FeatureRow: View {
         let icon: String
@@ -305,6 +595,97 @@ struct OnboardingView: View {
     
     // MARK: - Actions
     
+    private func savePersonalProfile() {
+        // Find the Personal profile and update it with the selected apps
+        if let personalProfile = profileManager.profiles.first(where: { $0.name == "Personal" }) {
+            profileManager.updateProfile(
+                id: personalProfile.id,
+                appTokens: activitySelection.applicationTokens,
+                categoryTokens: activitySelection.categoryTokens
+            )
+        }
+    }
+    
+    private func requestNotificationPermission() {
+        // First check if already granted
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                if settings.authorizationStatus == .authorized {
+                    self.notificationsGranted = true
+                    return
+                } else if settings.authorizationStatus == .denied {
+                    // Already denied - direct to settings
+                    self.errorMessage = "Notifications are disabled. Please enable them in Settings > Locked > Notifications."
+                    self.showErrorAlert = true
+                    return
+                }
+                
+                // Not determined yet - request permission
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            self.errorMessage = "Failed to request notification permission: \(error.localizedDescription)"
+                            self.showErrorAlert = true
+                        } else {
+                            self.notificationsGranted = granted
+                            if !granted {
+                                self.errorMessage = "Notifications are required for Locked to work properly. Please enable them in Settings."
+                                self.showErrorAlert = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func requestScreenTimePermission() {
+        // First check current status
+        let status = AuthorizationCenter.shared.authorizationStatus
+        
+        if status == .approved {
+            screenTimeGranted = true
+            return
+        } else if status == .denied {
+            errorMessage = "Screen Time access is denied. Please enable it in Settings > Screen Time > Locked."
+            showErrorAlert = true
+            return
+        }
+        
+        // Not determined yet - request permission
+        Task {
+            do {
+                try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
+                await MainActor.run {
+                    self.screenTimeGranted = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Screen Time access is required for Locked to block apps. Error: \(error.localizedDescription)"
+                    self.showErrorAlert = true
+                    self.screenTimeGranted = false
+                }
+            }
+        }
+    }
+    
+    private func checkPermissions() {
+        // Check notification permission
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                self.notificationsGranted = settings.authorizationStatus == .authorized
+            }
+        }
+        
+        // Check Screen Time permission
+        Task {
+            let status = AuthorizationCenter.shared.authorizationStatus
+            await MainActor.run {
+                self.screenTimeGranted = (status == .approved)
+            }
+        }
+    }
+    
     private func writeNFCTag() {
         guard NFCNDEFReaderSession.readingAvailable else {
             errorMessage = "NFC is not available on this device. You need an iPhone with NFC capability to use Locked."
@@ -325,10 +706,10 @@ struct OnboardingView: View {
     private func completeOnboarding() {
         hasCompletedOnboarding = true
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
-        UserDefaults.standard.set(true, forKey: "hasUsedNFC")
     }
 }
 
 #Preview {
     OnboardingView(hasCompletedOnboarding: .constant(false))
+        .environmentObject(ProfileManager())
 }

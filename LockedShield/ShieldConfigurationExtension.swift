@@ -13,13 +13,17 @@ import UIKit
 // The system provides a default appearance for any methods that your subclass doesn't override.
 // Make sure that your class name matches the NSExtensionPrincipalClass in your Info.plist.
 class ShieldConfigurationExtension: ShieldConfigurationDataSource {
+    
     override func configuration(shielding application: Application) -> ShieldConfiguration {
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterialDark,
             backgroundColor: UIColor.black,
             icon: UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 60, weight: .regular))?.withTintColor(.white, renderingMode: .alwaysOriginal),
-            title: ShieldConfiguration.Label(text: "Locked", color: .white),
-            subtitle: ShieldConfiguration.Label(text: "\(application.localizedDisplayName ?? "This App") Is Locked", color: .white),
+            title: ShieldConfiguration.Label(text: "App Locked", color: .white),
+            subtitle: ShieldConfiguration.Label(
+                text: "Open Locked app to unlock or snooze",
+                color: UIColor.white.withAlphaComponent(0.8)
+            ),
             primaryButtonLabel: ShieldConfiguration.Label(text: "OK", color: .black),
             primaryButtonBackgroundColor: .white,
             secondaryButtonLabel: nil
@@ -35,8 +39,11 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundBlurStyle: .systemMaterialDark,
             backgroundColor: UIColor.black,
             icon: UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 60, weight: .regular))?.withTintColor(.white, renderingMode: .alwaysOriginal),
-            title: ShieldConfiguration.Label(text: "Locked", color: .white),
-            subtitle: ShieldConfiguration.Label(text: "\(webDomain.domain ?? "This Site") Is Locked", color: .white),
+            title: ShieldConfiguration.Label(text: "Website Locked", color: .white),
+            subtitle: ShieldConfiguration.Label(
+                text: "Open Locked app to unlock or snooze",
+                color: UIColor.white.withAlphaComponent(0.8)
+            ),
             primaryButtonLabel: ShieldConfiguration.Label(text: "OK", color: .black),
             primaryButtonBackgroundColor: .white,
             secondaryButtonLabel: nil

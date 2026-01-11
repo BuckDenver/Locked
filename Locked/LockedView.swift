@@ -76,6 +76,9 @@ struct LockedView: View {
                 }
             }
             .onAppear {
+                // Check authorization status
+                appLocker.checkAuthorizationStatus()
+                
                 // Start countdown timer if there's an active timer
                 if isLocking && appLocker.timerEndDate != nil {
                     startCountdownTimer()
@@ -84,6 +87,16 @@ struct LockedView: View {
                 // Restart snooze timer if snooze is active
                 if snoozeManager.isSnoozed && snoozeManager.snoozeTimeRemaining > 0 {
                     restartSnoozeTimer()
+                }
+                
+                // Listen for snooze requests from shield
+                NotificationCenter.default.addObserver(
+                    forName: NSNotification.Name("ActivateSnoozeFromShield"),
+                    object: nil,
+                    queue: .main
+                ) { [self] _ in
+                    NSLog("📱 Activating snooze from shield request")
+                    startSnooze()
                 }
             }
             .onChange(of: appLocker.timerEndDate) { oldValue, newValue in
@@ -394,19 +407,46 @@ struct LockedView: View {
             }
         }
         
-        // Send notification
-        let content = UNMutableNotificationContent()
-        content.title = "Snooze Started"
-        content.body = "Apps unlocked for \(formatDuration(snoozeManager.snoozeDuration))"
-        content.sound = .default
+        // Schedule notification for when snooze ends - this can wake the app
+        let snoozeEndContent = UNMutableNotificationContent()
+        snoozeEndContent.title = "Snooze Ended"
+        snoozeEndContent.body = "Apps are locked again. Tap to view."
+        snoozeEndContent.sound = .default
+        snoozeEndContent.categoryIdentifier = "SNOOZE_END"
+        snoozeEndContent.userInfo = ["action": "relockApps"]
         
-        let request = UNNotificationRequest(
+        let snoozeEndTrigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: snoozeManager.snoozeDuration,
+            repeats: false
+        )
+        
+        let snoozeEndRequest = UNNotificationRequest(
+            identifier: "snooze-end",
+            content: snoozeEndContent,
+            trigger: snoozeEndTrigger
+        )
+        
+        UNUserNotificationCenter.current().add(snoozeEndRequest) { error in
+            if let error = error {
+                NSLog("❌ Failed to schedule snooze end notification: \(error)")
+            } else {
+                NSLog("✅ Scheduled snooze end notification for \(self.snoozeManager.snoozeDuration) seconds from now")
+            }
+        }
+        
+        // Send immediate notification that snooze started
+        let startContent = UNMutableNotificationContent()
+        startContent.title = "Snooze Started"
+        startContent.body = "Apps unlocked for \(formatDuration(snoozeManager.snoozeDuration))"
+        startContent.sound = .default
+        
+        let startRequest = UNNotificationRequest(
             identifier: "snooze-start",
-            content: content,
+            content: startContent,
             trigger: nil
         )
         
-        UNUserNotificationCenter.current().add(request)
+        UNUserNotificationCenter.current().add(startRequest)
         
         NSLog("⏰ Snooze timer started for \(snoozeManager.snoozeDuration) seconds")
     }

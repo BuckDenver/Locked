@@ -14,15 +14,7 @@ struct LockedApp: App {
     @StateObject private var profileManager = ProfileManager()
     @StateObject private var snoozeManager = SnoozeManager()
     @State private var hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
-    
-    init() {
-        // Request notification permissions on launch
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error = error {
-                NSLog("Error requesting notification permissions: \(error)")
-            }
-        }
-    }
+    @Environment(\.scenePhase) private var scenePhase
     
     var body: some Scene {
         WindowGroup {
@@ -33,6 +25,32 @@ struct LockedApp: App {
                     .environmentObject(snoozeManager)
             } else {
                 OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+                    .environmentObject(profileManager)
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                // Check for pending snooze requests when app becomes active
+                snoozeManager.checkForSnoozeRequest()
+                
+                // Check if snooze expired while app was closed
+                if snoozeManager.isSnoozed {
+                    let timeRemaining = snoozeManager.snoozeTimeRemaining
+                    if timeRemaining <= 0 {
+                        NSLog("⏰ Snooze expired while app was inactive - re-locking")
+                        // End snooze and re-lock
+                        snoozeManager.endSnooze()
+                        appLocker.startSessionManually(for: profileManager.currentProfile)
+                    }
+                }
+                
+                // Check if timer expired while app was closed
+                if appLocker.isLocking, let endDate = appLocker.timerEndDate {
+                    if endDate <= Date() {
+                        NSLog("⏰ Timer expired while app was inactive - unlocking")
+                        appLocker.endSession(for: profileManager.currentProfile)
+                    }
+                }
             }
         }
     }
@@ -46,11 +64,13 @@ class SnoozeManager: ObservableObject {
     @Published var snoozesUsedToday: Int = 0
     @Published var maxSnoozesPerDay: Int = 5 {
         didSet {
+            saveToAppGroup(maxSnoozesPerDay, forKey: maxSnoozesKey)
             UserDefaults.standard.set(maxSnoozesPerDay, forKey: maxSnoozesKey)
         }
     }
     @Published var snoozeDuration: TimeInterval = 300 {
         didSet {
+            saveToAppGroup(snoozeDuration, forKey: snoozeDurationKey)
             UserDefaults.standard.set(snoozeDuration, forKey: snoozeDurationKey)
         }
     }
@@ -61,10 +81,16 @@ class SnoozeManager: ObservableObject {
     private let snoozeDurationKey = "snoozeDuration"
     private let snoozeEndTimeKey = "snoozeEndTime"
     
+    // App Group for sharing data with extensions
+    private let appGroupIdentifier = "group.com.locked.app"
+    private var sharedDefaults: UserDefaults?
+    
     init() {
+        sharedDefaults = UserDefaults(suiteName: appGroupIdentifier)
         loadSnoozeData()
         checkAndResetIfNewDay()
         checkForActiveSnooze()
+        startListeningForSnoozeRequests()
     }
     
     var snoozesRemaining: Int {
@@ -112,6 +138,76 @@ class SnoozeManager: ObservableObject {
         NSLog("🔄 Snooze counter manually reset to 0")
     }
     
+    // MARK: - App Group Communication
+    
+    private func saveToAppGroup<T>(_ value: T, forKey key: String) {
+        sharedDefaults?.set(value, forKey: key)
+        sharedDefaults?.synchronize()
+    }
+    
+    private func startListeningForSnoozeRequests() {
+        // Listen for Darwin notifications from Shield Action Extension
+        let notificationName = CFNotificationName("com.locked.app.snoozeRequested" as CFString)
+        
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            { (center, observer, name, object, userInfo) in
+                guard let observer = observer else { return }
+                let manager = Unmanaged<SnoozeManager>.fromOpaque(observer).takeUnretainedValue()
+                Task { @MainActor in
+                    manager.handleSnoozeRequest()
+                }
+            },
+            "com.locked.app.snoozeRequested" as CFString,
+            nil,
+            .deliverImmediately
+        )
+        
+        // Also check periodically for snooze requests
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkForSnoozeRequest()
+            }
+        }
+    }
+    
+    func checkForSnoozeRequest() {
+        guard let sharedDefaults = sharedDefaults else { return }
+        
+        if sharedDefaults.bool(forKey: "snoozeRequested") {
+            let requestTime = sharedDefaults.double(forKey: "snoozeRequestTime")
+            
+            // Only process recent requests (within last 10 seconds)
+            if Date().timeIntervalSince1970 - requestTime < 10 {
+                NSLog("📱 Processing pending snooze request from shield")
+                
+                // Clear the flag
+                sharedDefaults.set(false, forKey: "snoozeRequested")
+                sharedDefaults.removeObject(forKey: "snoozeRequestTime")
+                sharedDefaults.synchronize()
+                
+                handleSnoozeRequest()
+            } else {
+                // Clear old request
+                sharedDefaults.set(false, forKey: "snoozeRequested")
+                sharedDefaults.removeObject(forKey: "snoozeRequestTime")
+                sharedDefaults.synchronize()
+            }
+        }
+    }
+    
+    private func handleSnoozeRequest() {
+        NSLog("📱 Snooze request received from shield!")
+        
+        if canSnooze {
+            // Post notification that snooze needs to be activated
+            NotificationCenter.default.post(name: NSNotification.Name("ActivateSnoozeFromShield"), object: nil)
+        } else {
+            NSLog("⚠️ Snooze request denied - no snoozes remaining")
+        }
+    }
+    
     private func checkForActiveSnooze() {
         // Check if there's a saved snooze end time
         if let endTime = UserDefaults.standard.object(forKey: snoozeEndTimeKey) as? Date {
@@ -124,10 +220,22 @@ class SnoozeManager: ObservableObject {
                 snoozeTimeRemaining = remaining
                 NSLog("⏰ Restored active snooze with \(remaining) seconds remaining")
             } else {
-                // Snooze expired while app was closed
+                // Snooze expired while app was closed - mark it but don't re-lock yet
+                // The app should handle re-locking when it becomes active
                 UserDefaults.standard.removeObject(forKey: snoozeEndTimeKey)
+                isSnoozed = false
+                snoozeTimeRemaining = 0
                 NSLog("⏰ Snooze expired while app was closed")
             }
+        }
+    }
+    
+    // Public method to check and handle expired snooze/timer
+    func handleExpiredTimers() {
+        // Check if snooze expired
+        if isSnoozed && snoozeTimeRemaining <= 0 {
+            NSLog("⏰ Handling expired snooze")
+            endSnooze()
         }
     }
     
@@ -167,7 +275,11 @@ class SnoozeManager: ObservableObject {
     
     private func saveSnoozeData() {
         UserDefaults.standard.set(snoozesUsedToday, forKey: snoozesUsedKey)
+        
+        // Also save to App Group
+        saveToAppGroup(snoozesUsedToday, forKey: snoozesUsedKey)
     }
 }
+
 
 
