@@ -8,6 +8,35 @@
 import SwiftUI
 import UserNotifications
 
+// Notification delegate to show notifications even when app is in foreground
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationDelegate()
+    
+    private override init() {
+        super.init()
+        NSLog("🔔 NotificationDelegate initialized")
+    }
+    
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show notification even when app is in foreground
+        NSLog("📬 Notification will present: \(notification.request.identifier)")
+        completionHandler([.banner, .sound, .badge])
+    }
+    
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        NSLog("📬 Notification tapped: \(response.notification.request.identifier)")
+        completionHandler()
+    }
+}
+
 @main
 struct LockedApp: App {
     @StateObject private var appLocker = AppLocker()
@@ -15,6 +44,11 @@ struct LockedApp: App {
     @StateObject private var snoozeManager = SnoozeManager()
     @State private var hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     @Environment(\.scenePhase) private var scenePhase
+    
+    init() {
+        // Set up notification categories and delegate
+        setupNotifications()
+    }
     
     var body: some Scene {
         WindowGroup {
@@ -279,6 +313,35 @@ class SnoozeManager: ObservableObject {
         // Also save to App Group
         saveToAppGroup(snoozesUsedToday, forKey: snoozesUsedKey)
     }
+}
+
+// MARK: - Notification Setup
+
+private func setupNotifications() {
+    let center = UNUserNotificationCenter.current()
+    
+    // Use singleton delegate that stays alive
+    center.delegate = NotificationDelegate.shared
+    
+    // Define notification categories
+    let snoozeEndCategory = UNNotificationCategory(
+        identifier: "SNOOZE_END",
+        actions: [],
+        intentIdentifiers: [],
+        options: []
+    )
+    
+    let timerEndCategory = UNNotificationCategory(
+        identifier: "TIMER_END",
+        actions: [],
+        intentIdentifiers: [],
+        options: []
+    )
+    
+    // Register categories
+    center.setNotificationCategories([snoozeEndCategory, timerEndCategory])
+    
+    NSLog("✅ Notification categories registered with singleton delegate")
 }
 
 

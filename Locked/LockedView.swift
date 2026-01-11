@@ -525,6 +525,8 @@ struct LockedView: View {
         // Update immediately
         currentTime = Date()
         
+        NSLog("⏲️ Starting countdown timer. Timer end date: \(appLocker.timerEndDate?.description ?? "none")")
+        
         // Then update every second
         countdownTimer?.invalidate()
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
@@ -532,11 +534,19 @@ struct LockedView: View {
                 self.currentTime = Date()
                 
                 // Check if timer has expired
-                if let endDate = self.appLocker.timerEndDate,
-                   endDate <= Date() {
-                    NSLog("⏰ Timer expired - automatically unlocking")
-                    self.stopCountdownTimer()
-                    self.appLocker.endSession(for: self.profileManager.currentProfile)
+                if let endDate = self.appLocker.timerEndDate {
+                    let timeRemaining = endDate.timeIntervalSince(Date())
+                    
+                    // Log every 30 seconds
+                    if Int(timeRemaining) % 30 == 0 {
+                        NSLog("⏲️ Timer check: \(Int(timeRemaining)) seconds remaining")
+                    }
+                    
+                    if endDate <= Date() {
+                        NSLog("⏰ Timer expired - automatically unlocking apps!")
+                        self.stopCountdownTimer()
+                        self.appLocker.endSession(for: self.profileManager.currentProfile)
+                    }
                 }
             }
         }

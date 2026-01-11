@@ -142,8 +142,10 @@ struct QuickLockTimerView: View {
         // Schedule notification for when timer ends
         let content = UNMutableNotificationContent()
         content.title = "Lock Timer Ended"
-        content.body = "Your \(durationString) lock timer has expired. Open the app to unlock."
+        content.body = "Your \(durationString) lock timer has expired. Apps are now unlocked."
         content.sound = .default
+        content.categoryIdentifier = "TIMER_END"
+        content.userInfo = ["action": "timerExpired", "endDate": endDate.timeIntervalSince1970]
         
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: TimeInterval(totalMinutes * 60),
