@@ -157,7 +157,7 @@ struct TimerLockView: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Apps will be locked for \(totalTimeString). They will automatically unlock when the timer expires.")
+            Text("Apps will be locked for \(totalTimeString). You'll need your NFC tag to unlock before the timer expires.")
         }
     }
     
@@ -192,7 +192,7 @@ struct TimerLockView: View {
     private func scheduleUnlockNotification(afterMinutes minutes: Int) {
         let content = UNMutableNotificationContent()
         content.title = "Timer Lock Expired"
-        content.body = "Your \(totalTimeString) timer has ended. Your apps have been unlocked!"
+        content.body = "Your \(totalTimeString) timer has ended. Open the Locked app to unlock your apps."
         content.sound = .default
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(minutes * 60), repeats: false)

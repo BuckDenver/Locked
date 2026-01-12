@@ -23,6 +23,7 @@ struct LockedView: View {
     @State private var showStartSessionWarning = false
     @State private var showSessionStartOptions = false
     @State private var showTimerLock = false
+    @State private var timerExpired = false
     
     private var isLocking : Bool {
         return appLocker.isLocking
@@ -36,7 +37,9 @@ struct LockedView: View {
                     ZStack {
                         LinearGradient(
                             colors: isLocking ? 
-                                [Color(red: 0.8, green: 0.2, blue: 0.2), Color(red: 0.5, green: 0.1, blue: 0.1)] :
+                                (timerManager.isTimerActive ? 
+                                    [Color(red: 0.9, green: 0.5, blue: 0.2), Color(red: 0.8, green: 0.3, blue: 0.1)] :
+                                    [Color(red: 0.8, green: 0.2, blue: 0.2), Color(red: 0.5, green: 0.1, blue: 0.1)]) :
                                 [Color(red: 0.2, green: 0.7, blue: 0.4), Color(red: 0.1, green: 0.5, blue: 0.3)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -44,6 +47,7 @@ struct LockedView: View {
                     }
                     .ignoresSafeArea()
                     .animation(.easeInOut(duration: 0.6), value: isLocking)
+                    .animation(.easeInOut(duration: 0.6), value: timerManager.isTimerActive)
 
                     // Lock button layer, centered
                     Group {
@@ -72,6 +76,7 @@ struct LockedView: View {
             }
             .onAppear {
                 setupTimerCallback()
+                checkTimerExpiration()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -79,19 +84,9 @@ struct LockedView: View {
                         Button {
                             showTimerLock = true
                         } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "timer")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text("Timer")
-                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(.ultraThinMaterial)
-                            )
+                            Image(systemName: "timer")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(.white)
                         }
                     }
                 }
@@ -184,6 +179,29 @@ struct LockedView: View {
                 .padding(.top, 8)
             }
             
+            // Show unlock button when timer has expired
+            if isLocking && timerExpired {
+                Button {
+                    unlockAfterTimer()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.open.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Unlock Without NFC")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                    )
+                }
+                .padding(.top, 16)
+            }
+            
             if !isLocking {
                 Button {
                     showStartSessionWarning = true
@@ -245,19 +263,9 @@ struct LockedView: View {
         Button(action: {
             showCreateTagAlert = true
         }) {
-            HStack(spacing: 6) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                Text("New Lock")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-            )
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(.white)
         }
         .disabled(!NFCNDEFReaderSession.readingAvailable)
     }
@@ -270,11 +278,33 @@ struct LockedView: View {
     }
     
     private func setupTimerCallback() {
-        timerManager.onTimerExpired = { [weak appLocker, weak profileManager] in
-            guard let appLocker = appLocker, let profileManager = profileManager else { return }
-            // Automatically unlock when timer expires
-            appLocker.endSession(for: profileManager.currentProfile)
+        timerManager.onTimerExpired = {
+            // Set flag to show unlock button instead of auto-unlocking
+            Task { @MainActor in
+                self.timerExpired = true
+            }
         }
+    }
+    
+    private func checkTimerExpiration() {
+        // Check if timer has expired and show unlock button
+        if let endTime = UserDefaults.standard.object(forKey: "timerLockEndTime") as? Date {
+            NSLog("Timer end time found: \(endTime), current time: \(Date()), isLocking: \(appLocker.isLocking)")
+            if endTime <= Date() && appLocker.isLocking {
+                // Timer expired, show unlock button
+                NSLog("Timer has expired! Setting timerExpired = true")
+                timerExpired = true
+                // Don't clear timer yet - let the unlock button do that
+            }
+        } else {
+            NSLog("No timer end time found in UserDefaults")
+        }
+    }
+    
+    private func unlockAfterTimer() {
+        appLocker.endSession(for: profileManager.currentProfile)
+        timerManager.clearTimer()
+        timerExpired = false
     }
 }
 

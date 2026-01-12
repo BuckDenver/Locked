@@ -32,8 +32,9 @@ class TimerManager: ObservableObject {
                 endTime = savedEndTime
                 isTimerActive = true
             } else {
-                // Timer expired, clear it and trigger unlock
-                clearTimer()
+                // Timer expired - don't clear it yet, let the view handle it
+                // Just set it as inactive
+                isTimerActive = false
                 onTimerExpired?()
             }
         }
