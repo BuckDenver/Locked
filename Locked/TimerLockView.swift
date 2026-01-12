@@ -12,12 +12,15 @@ struct TimerLockView: View {
     @EnvironmentObject private var profileManager: ProfileManager
     @EnvironmentObject private var timerManager: TimerManager
     @Environment(\.dismiss) var dismiss
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     
     @State private var hours: Int = 0
     @State private var minutes: Int = 30
     @State private var showConfirmation = false
     
     var body: some View {
+        let isIPad = horizontalSizeClass == .regular
+        
         NavigationView {
             ZStack {
                 LinearGradient(
@@ -27,12 +30,12 @@ struct TimerLockView: View {
                 )
                 .ignoresSafeArea()
                 
-                VStack(spacing: 40) {
+                VStack(spacing: isIPad ? 50 : 40) {
                     Spacer()
                     
                     VStack(spacing: 20) {
                         Image(systemName: "timer")
-                            .font(.system(size: 80, weight: .semibold))
+                            .font(.system(size: isIPad ? 100 : 80, weight: .semibold))
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [.white, .white.opacity(0.8)],
@@ -43,15 +46,15 @@ struct TimerLockView: View {
                             .shadow(color: .black.opacity(0.3), radius: 15, x: 0, y: 8)
                         
                         Text("Set Timer Lock")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .font(.system(size: isIPad ? 44 : 36, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                         
                         Text("Apps will automatically lock for the selected duration")
-                            .font(.system(size: 17, weight: .medium, design: .rounded))
+                            .font(.system(size: isIPad ? 20 : 17, weight: .medium, design: .rounded))
                             .foregroundColor(.white.opacity(0.9))
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
+                            .padding(.horizontal, isIPad ? 100 : 40)
                     }
                     
                     // Timer Picker
@@ -61,40 +64,40 @@ struct TimerLockView: View {
                             Picker("Hours", selection: $hours) {
                                 ForEach(0...23, id: \.self) { hour in
                                     Text("\(hour)")
-                                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                                        .font(.system(size: isIPad ? 36 : 32, weight: .bold, design: .rounded))
                                         .foregroundColor(.white)
                                         .tag(hour)
                                 }
                             }
                             .pickerStyle(.wheel)
-                            .frame(width: 80)
+                            .frame(width: isIPad ? 100 : 80)
                             
                             Text("h")
-                                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                                .font(.system(size: isIPad ? 28 : 24, weight: .semibold, design: .rounded))
                                 .foregroundColor(.white.opacity(0.8))
-                                .padding(.horizontal, 8)
+                                .padding(.horizontal, isIPad ? 12 : 8)
                             
                             // Minutes Picker
                             Picker("Minutes", selection: $minutes) {
                                 ForEach(0...59, id: \.self) { minute in
                                     Text("\(minute)")
-                                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                                        .font(.system(size: isIPad ? 36 : 32, weight: .bold, design: .rounded))
                                         .foregroundColor(.white)
                                         .tag(minute)
                                 }
                             }
                             .pickerStyle(.wheel)
-                            .frame(width: 80)
+                            .frame(width: isIPad ? 100 : 80)
                             
                             Text("m")
-                                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                                .font(.system(size: isIPad ? 28 : 24, weight: .semibold, design: .rounded))
                                 .foregroundColor(.white.opacity(0.8))
-                                .padding(.horizontal, 8)
+                                .padding(.horizontal, isIPad ? 12 : 8)
                         }
-                        .padding(.horizontal, 40)
+                        .padding(.horizontal, isIPad ? 100 : 40)
                         
                         Text(totalTimeString)
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .font(.system(size: isIPad ? 20 : 18, weight: .semibold, design: .rounded))
                             .foregroundColor(.white.opacity(0.9))
                     }
                     .padding(.vertical, 20)
@@ -118,7 +121,7 @@ struct TimerLockView: View {
                                     .font(.system(size: 20, weight: .bold, design: .rounded))
                             }
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: isIPad ? 500 : .infinity)
                             .padding(.vertical, 18)
                             .background(
                                 Capsule()
@@ -129,7 +132,7 @@ struct TimerLockView: View {
                         .disabled(hours == 0 && minutes == 0)
                         .opacity((hours == 0 && minutes == 0) ? 0.5 : 1.0)
                     }
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, isIPad ? 150 : 40)
                     .padding(.bottom, 50)
                 }
             }
@@ -151,6 +154,7 @@ struct TimerLockView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .alert("Start Timer Lock?", isPresented: $showConfirmation) {
             Button("Start", role: .destructive) {
                 startTimerLock()

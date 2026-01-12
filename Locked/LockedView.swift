@@ -15,6 +15,7 @@ struct LockedView: View {
     @EnvironmentObject private var profileManager: ProfileManager
     @StateObject private var nfcReader = NFCReader()
     @StateObject private var timerManager = TimerManager()
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     private let tagPhrase = "LOCKED-IS-GREAT"
     
     @State private var showWrongTagAlert = false
@@ -130,13 +131,16 @@ struct LockedView: View {
                 timerLockSheet
             }
         }
+        .navigationViewStyle(.stack)
     }
     
     @ViewBuilder
     private func lockOrUnlockButton(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 24) {
+        let isIPad = horizontalSizeClass == .regular
+        
+        VStack(spacing: isIPad ? 32 : 24) {
             Text(isLocking ? "Tap To Unlock" : "Tap To Lock")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .font(.system(size: isIPad ? 44 : 36, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
 
@@ -148,7 +152,7 @@ struct LockedView: View {
                 Image(isLocking ? "RedIcon" : "GreenIcon")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(height: geometry.size.height / 3)
+                    .frame(height: isIPad ? min(geometry.size.height / 2.5, 400) : geometry.size.height / 3)
                     .shadow(color: .black.opacity(0.3), radius: 15, x: 0, y: 8)
             }
             .scaleEffect(isLocking ? 1.0 : 1.05)
@@ -159,13 +163,13 @@ struct LockedView: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
                         Image(systemName: "timer")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(.system(size: isIPad ? 24 : 20, weight: .semibold))
                         Text(timerManager.remainingTimeString)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.system(size: isIPad ? 32 : 28, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, isIPad ? 32 : 24)
+                    .padding(.vertical, isIPad ? 16 : 12)
                     .background(
                         Capsule()
                             .fill(.ultraThinMaterial)
@@ -173,7 +177,7 @@ struct LockedView: View {
                     )
                     
                     Text("Time Remaining")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .font(.system(size: isIPad ? 16 : 14, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.8))
                 }
                 .padding(.top, 8)
@@ -186,13 +190,13 @@ struct LockedView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "lock.open.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: isIPad ? 18 : 16, weight: .semibold))
                         Text("Unlock Without NFC")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .font(.system(size: isIPad ? 20 : 18, weight: .semibold, design: .rounded))
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
+                    .padding(.horizontal, isIPad ? 32 : 24)
+                    .padding(.vertical, isIPad ? 18 : 14)
                     .background(
                         Capsule()
                             .fill(.ultraThinMaterial)

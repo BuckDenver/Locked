@@ -10,23 +10,26 @@ import FamilyControls
 
 struct ProfilesPicker: View {
     @ObservedObject var profileManager: ProfileManager
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @State private var editingProfile: Profile?
     
     var body: some View {
-        VStack(spacing: 20) {
+        let isIPad = horizontalSizeClass == .regular
+        
+        VStack(spacing: isIPad ? 24 : 20) {
             VStack(spacing: 6) {
                 Text("Profiles")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: isIPad ? 28 : 24, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
 
                 Text("Tap to select • Long press to edit")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.system(size: isIPad ? 15 : 13, weight: .medium, design: .rounded))
                     .foregroundColor(.secondary)
             }
-            .padding(.top, 24)
+            .padding(.top, isIPad ? 32 : 24)
             
             // Static HStack without ScrollView
-            HStack(spacing: 20) {
+            HStack(spacing: isIPad ? 28 : 20) {
                 ForEach(profileManager.profiles) { profile in
                     ProfileCell(profile: profile, isSelected: profile.id == profileManager.currentProfileId)
                         .onTapGesture {
@@ -39,12 +42,13 @@ struct ProfilesPicker: View {
                         }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
+            .padding(.horizontal, isIPad ? 40 : 20)
+            .padding(.bottom, isIPad ? 40 : 32)
         }
+        .frame(maxWidth: isIPad ? 900 : .infinity)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: isIPad ? 40 : 30, style: .continuous)
                 .fill(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: -5)
                 .ignoresSafeArea(edges: .bottom)
@@ -66,9 +70,12 @@ struct ProfileCellBase: View {
     let isAllowListMode: Bool?
     var isDashed: Bool = false
     var hasDivider: Bool = true
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
     var body: some View {
-        VStack(spacing: 10) {
+        let isIPad = horizontalSizeClass == .regular
+        
+        VStack(spacing: isIPad ? 12 : 10) {
             ZStack {
                 Circle()
                     .fill(
@@ -80,17 +87,17 @@ struct ProfileCellBase: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 70, height: 70)
+                    .frame(width: isIPad ? 90 : 70, height: isIPad ? 90 : 70)
                     .shadow(color: isSelected ? .blue.opacity(0.4) : .clear, radius: 8, x: 0, y: 4)
                 
                 Image(systemName: icon)
-                    .font(.system(size: 32, weight: .semibold))
+                    .font(.system(size: isIPad ? 40 : 32, weight: .semibold))
                     .foregroundColor(.white)
                     .symbolEffect(.bounce, value: isSelected)
             }
             
             Text(name)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(size: isIPad ? 16 : 14, weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -98,26 +105,26 @@ struct ProfileCellBase: View {
             if let apps = appsBlocked, let isAllowMode = isAllowListMode {
                 HStack(spacing: 4) {
                     Image(systemName: isAllowMode ? "checkmark.shield.fill" : "lock.shield.fill")
-                        .font(.system(size: 9))
+                        .font(.system(size: isIPad ? 11 : 9))
                     Text("\(apps)")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(size: isIPad ? 13 : 11, weight: .medium, design: .rounded))
                 }
                 .foregroundColor(isAllowMode ? .green : .orange)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, isIPad ? 10 : 8)
+                .padding(.vertical, isIPad ? 5 : 4)
                 .background(
                     Capsule()
                         .fill((isAllowMode ? Color.green : Color.orange).opacity(0.15))
                 )
             }
         }
-        .frame(width: 100)
-        .padding(.vertical, 16)
+        .frame(width: isIPad ? 130 : 100)
+        .padding(.vertical, isIPad ? 20 : 16)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: isIPad ? 22 : 18, style: .continuous)
                 .fill(isSelected ? .thinMaterial : .ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: isIPad ? 22 : 18, style: .continuous)
                         .strokeBorder(
                             isSelected ? 
                                 LinearGradient(
