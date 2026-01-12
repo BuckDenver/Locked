@@ -219,8 +219,10 @@ struct ProfileFormView: View {
                             }
                         }
                 }
+                .navigationViewStyle(.stack)
             }
         }
+        .navigationViewStyle(.stack)
     }
     
     private func handleSave() {
