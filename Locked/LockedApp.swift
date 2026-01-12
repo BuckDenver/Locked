@@ -29,6 +29,10 @@ struct MainAppView: View {
         LockedView()
             .environmentObject(appLocker)
             .environmentObject(profileManager)
+            .onAppear {
+                print("✅ MainAppView appeared")
+                print("   - AppLocker initialized: \(appLocker.isAuthorized)")
+                print("   - Profiles loaded: \(profileManager.profiles.count)")
+            }
     }
 }
-
