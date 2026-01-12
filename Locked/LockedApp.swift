@@ -36,4 +36,3 @@ struct MainAppView: View {
             }
     }
 }
-

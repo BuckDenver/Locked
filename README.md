@@ -23,7 +23,6 @@ While the app is functional, I could never do what the team at Brick could do. Y
 - Multiple Profiles  
 - Creating your own NFC tag
 - Created a timer to lock apps for a duration of time
-- 5-minute snooze button for a temporary break from locking (can only be used 5 times a day)
 
 I also added a custom shield configuration to display a custom lock screen over locked apps (altohugh im waiting on apple permissions to put this to testflight)
 
