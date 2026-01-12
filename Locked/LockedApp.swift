@@ -10,20 +10,23 @@ import SwiftUI
 @main
 struct LockedApp: App {
     @State private var hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    @StateObject private var profileManager = ProfileManager()
     
     var body: some Scene {
         WindowGroup {
             if hasCompletedOnboarding {
-                MainAppView()
+                MainAppView(profileManager: profileManager)
             } else {
                 OnboardingView(isOnboardingComplete: $hasCompletedOnboarding)
+                    .environmentObject(profileManager)
             }
         }
     }
 }
+
 struct MainAppView: View {
     @StateObject private var appLocker = AppLocker()
-    @StateObject private var profileManager = ProfileManager()
+    @ObservedObject var profileManager: ProfileManager
     
     var body: some View {
         LockedView()

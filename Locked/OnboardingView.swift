@@ -12,6 +12,7 @@ import CoreNFC
 
 struct OnboardingView: View {
     @StateObject private var onboardingManager = OnboardingManager()
+    @EnvironmentObject var profileManager: ProfileManager
     @Binding var isOnboardingComplete: Bool
     
     var body: some View {
@@ -22,8 +23,11 @@ struct OnboardingView: View {
             PermissionsPage(onboardingManager: onboardingManager)
                 .tag(1)
             
-            NFCSetupPage(onboardingManager: onboardingManager, isOnboardingComplete: $isOnboardingComplete)
+            AppSelectionPage(onboardingManager: onboardingManager, profileManager: profileManager)
                 .tag(2)
+            
+            NFCSetupPage(onboardingManager: onboardingManager, isOnboardingComplete: $isOnboardingComplete)
+                .tag(3)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -202,6 +206,164 @@ struct PermissionsPage: View {
                 .padding(.horizontal, horizontalSizeClass == .regular ? 150 : 40)
                 .padding(.bottom, 50)
             }
+        }
+    }
+}
+
+// MARK: - App Selection Page
+struct AppSelectionPage: View {
+    @ObservedObject var onboardingManager: OnboardingManager
+    @ObservedObject var profileManager: ProfileManager
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @State private var activitySelection = FamilyActivitySelection()
+    @State private var showAppPicker = false
+    
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(red: 0.9, green: 0.5, blue: 0.2), Color(red: 0.8, green: 0.3, blue: 0.1)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: horizontalSizeClass == .regular ? 50 : 40) {
+                Spacer()
+                
+                VStack(spacing: 20) {
+                    Image(systemName: "apps.iphone.badge.plus")
+                        .font(.system(size: horizontalSizeClass == .regular ? 100 : 80, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: .black.opacity(0.3), radius: 15, x: 0, y: 8)
+                    
+                    Text("Select Distracting Apps")
+                        .font(.system(size: horizontalSizeClass == .regular ? 44 : 36, 
+                                    weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Choose at least one app you find distracting. These will be added to your Personal profile")
+                        .font(.system(size: horizontalSizeClass == .regular ? 20 : 17, 
+                                    weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, horizontalSizeClass == .regular ? 100 : 40)
+                }
+                
+                // App count indicator
+                if !activitySelection.applicationTokens.isEmpty {
+                    HStack(spacing: 12) {
+                        Image(systemName: "apps.iphone")
+                            .font(.system(size: 20, weight: .semibold))
+                        Text("\(activitySelection.applicationTokens.count) app\(activitySelection.applicationTokens.count == 1 ? "" : "s") selected")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    )
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 16) {
+                    Button {
+                        showAppPicker = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "apps.iphone")
+                                .font(.system(size: 18, weight: .bold))
+                            Text(hasSelectedApps ? "Change Selection" : "Select Apps")
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: horizontalSizeClass == .regular ? 500 : .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 8)
+                        )
+                    }
+                    
+                    Button {
+                        saveAppsToPersonalProfile()
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                            onboardingManager.nextPage()
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text("Continue")
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 18, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: horizontalSizeClass == .regular ? 500 : .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 8)
+                        )
+                    }
+                    .disabled(!hasSelectedApps)
+                    .opacity(hasSelectedApps ? 1.0 : 0.5)
+                }
+                .padding(.horizontal, horizontalSizeClass == .regular ? 150 : 40)
+                .padding(.bottom, 50)
+            }
+        }
+        .onAppear {
+            loadPersonalProfileSelection()
+        }
+        .sheet(isPresented: $showAppPicker) {
+            NavigationView {
+                FamilyActivityPicker(selection: $activitySelection)
+                    .navigationTitle("Select Distracting Apps")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showAppPicker = false
+                            }
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                        }
+                    }
+            }
+            .navigationViewStyle(.stack)
+        }
+    }
+    
+    private var hasSelectedApps: Bool {
+        !activitySelection.applicationTokens.isEmpty
+    }
+    
+    private func loadPersonalProfileSelection() {
+        // Load existing Personal profile selection if it exists
+        if let personalProfile = profileManager.profiles.first(where: { $0.name == "Personal" }) {
+            activitySelection.applicationTokens = personalProfile.appTokens
+            activitySelection.categoryTokens = personalProfile.categoryTokens
+        }
+    }
+    
+    private func saveAppsToPersonalProfile() {
+        // Find the Personal profile and update it with selected apps
+        if let personalProfile = profileManager.profiles.first(where: { $0.name == "Personal" }) {
+            profileManager.updateProfile(
+                id: personalProfile.id,
+                appTokens: activitySelection.applicationTokens,
+                categoryTokens: activitySelection.categoryTokens
+            )
         }
     }
 }
@@ -558,7 +720,7 @@ class OnboardingManager: ObservableObject {
     }
     
     func nextPage() {
-        if currentPage < 3 {
+        if currentPage < 4 {
             currentPage += 1
         }
     }
