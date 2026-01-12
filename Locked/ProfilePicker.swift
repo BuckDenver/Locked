@@ -13,31 +13,22 @@ struct ProfilesPicker: View {
     @State private var editingProfile: Profile?
     
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 12) {
-                // Header
-                VStack(spacing: 4) {
-                    Text("Profiles")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-                        .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                Text("Profiles")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
 
-                    Text("Tap to select • Long press to edit")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)
-                }
-                .padding(.top, 16)
-                
-                // Profile Cards Container
-                HStack(spacing: calculateSpacing(for: geometry.size.width)) {
-                    ForEach(profileManager.profiles) { profile in
-                        ProfileCard(
-                            profile: profile,
-                            isSelected: profile.id == profileManager.currentProfileId,
-                            cardWidth: calculateCardWidth(for: geometry.size.width)
-                        )
+                Text("Tap to select • Long press to edit")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 24)
+            
+            // Static HStack without ScrollView
+            HStack(spacing: 20) {
+                ForEach(profileManager.profiles) { profile in
+                    ProfileCell(profile: profile, isSelected: profile.id == profileManager.currentProfileId)
                         .onTapGesture {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 profileManager.setCurrentProfile(id: profile.id)
@@ -46,145 +37,23 @@ struct ProfilesPicker: View {
                         .onLongPressGesture {
                             editingProfile = profile
                         }
-                    }
                 }
-                .padding(.horizontal, 20)
-                .frame(maxWidth: .infinity)
-                
-                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 32)
         }
+        .frame(maxWidth: .infinity)
         .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color("ProfileSectionBackground").opacity(0.95),
-                    Color("ProfileSectionBackground")
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: -5)
+                .ignoresSafeArea(edges: .bottom)
         )
         .sheet(item: $editingProfile) { profile in
             ProfileFormView(profile: profile, profileManager: profileManager) {
                 editingProfile = nil
             }
         }
-    }
-    
-    private func calculateCardWidth(for width: CGFloat) -> CGFloat {
-        let totalPadding: CGFloat = 40 // Left and right padding
-        let numberOfProfiles = CGFloat(profileManager.profiles.count)
-        let totalSpacing = (numberOfProfiles - 1) * calculateSpacing(for: width)
-        let availableWidth = width - totalPadding - totalSpacing
-        return availableWidth / numberOfProfiles
-    }
-    
-    private func calculateSpacing(for width: CGFloat) -> CGFloat {
-        // Adjust spacing based on screen width
-        if width < 375 {
-            return 8 // Smaller phones
-        } else if width < 430 {
-            return 12 // Regular phones
-        } else {
-            return 16 // Plus/Max phones
-        }
-    }
-}
-
-struct ProfileCard: View {
-    let profile: Profile
-    let isSelected: Bool
-    let cardWidth: CGFloat
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            // Icon with background
-            ZStack {
-                Circle()
-                    .fill(isSelected ? Color.blue.opacity(0.3) : Color.secondary.opacity(0.2))
-                    .frame(width: min(44, cardWidth * 0.4), height: min(44, cardWidth * 0.4))
-                
-                Image(systemName: profile.icon)
-                    .font(.system(size: min(22, cardWidth * 0.2)))
-                    .foregroundColor(isSelected ? .blue : .primary)
-                    .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-            }
-            
-            // Profile name
-            Text(profile.name)
-                .font(.system(size: min(14, cardWidth * 0.14)))
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
-                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            
-            // Stats section
-            VStack(spacing: 2) {
-                if profile.isAllowListMode {
-                    HStack(spacing: 3) {
-                        Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: min(9, cardWidth * 0.09)))
-                        Text("Allow: \(profile.appTokens.count)")
-                            .font(.system(size: min(10, cardWidth * 0.1)))
-                            .fontWeight(.medium)
-                    }
-                    .foregroundColor(.green)
-                    .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-                } else {
-                    VStack(spacing: 2) {
-                        if profile.appTokens.count > 0 {
-                            HStack(spacing: 3) {
-                                Image(systemName: "app.badge.fill")
-                                    .font(.system(size: min(9, cardWidth * 0.09)))
-                                Text("\(profile.appTokens.count) apps")
-                                    .font(.system(size: min(10, cardWidth * 0.1)))
-                                    .fontWeight(.medium)
-                            }
-                        }
-                        
-                        if profile.categoryTokens.count > 0 {
-                            HStack(spacing: 3) {
-                                Image(systemName: "folder.fill")
-                                    .font(.system(size: min(9, cardWidth * 0.09)))
-                                Text("\(profile.categoryTokens.count) cats")
-                                    .font(.system(size: min(10, cardWidth * 0.1)))
-                                    .fontWeight(.medium)
-                            }
-                        }
-                        
-                        if profile.appTokens.count == 0 && profile.categoryTokens.count == 0 {
-                            HStack(spacing: 3) {
-                                Image(systemName: "minus.circle")
-                                    .font(.system(size: min(9, cardWidth * 0.09)))
-                                Text("None")
-                                    .font(.system(size: min(10, cardWidth * 0.1)))
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.secondary)
-                        }
-                    }
-                    .foregroundColor(.orange)
-                    .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-                }
-            }
-            .frame(minHeight: 24)
-        }
-        .padding(.horizontal, max(8, cardWidth * 0.08))
-        .padding(.vertical, 10)
-        .frame(width: cardWidth)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(isSelected ? 0.08 : 0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color.blue.opacity(0.8) : Color.primary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
-                )
-        )
-        .shadow(color: isSelected ? Color.blue.opacity(0.4) : Color.primary.opacity(0.1), radius: isSelected ? 6 : 3, x: 0, y: 2)
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
 
@@ -199,42 +68,74 @@ struct ProfileCellBase: View {
     var hasDivider: Bool = true
 
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 30, height: 30)
-            if hasDivider {
-                Divider().padding(2)
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: isSelected ? 
+                                [Color.blue.opacity(0.6), Color.purple.opacity(0.6)] : 
+                                [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 70, height: 70)
+                    .shadow(color: isSelected ? .blue.opacity(0.4) : .clear, radius: 8, x: 0, y: 4)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundColor(.white)
+                    .symbolEffect(.bounce, value: isSelected)
             }
+            
             Text(name)
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
             
             if let apps = appsBlocked, let isAllowMode = isAllowListMode {
-                if isAllowMode {
-                    Text("Allow: \(apps)")
-                        .font(.system(size: 10))
-                        .foregroundColor(.green)
-                } else if let categories = categoriesBlocked {
-                    Text("Block: \(apps) | C: \(categories)")
-                        .font(.system(size: 10))
-                        .foregroundColor(.red)
+                HStack(spacing: 4) {
+                    Image(systemName: isAllowMode ? "checkmark.shield.fill" : "lock.shield.fill")
+                        .font(.system(size: 9))
+                    Text("\(apps)")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                 }
+                .foregroundColor(isAllowMode ? .green : .orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill((isAllowMode ? Color.green : Color.orange).opacity(0.15))
+                )
             }
         }
-        .frame(width: 90, height: 90)
-        .padding(2)
-        .background(isSelected ? Color.blue.opacity(0.3) : Color.secondary.opacity(0.2))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(
-                    isSelected ? Color.blue : (isDashed ? Color.secondary : Color.clear),
-                    style: StrokeStyle(lineWidth: 2, dash: isDashed ? [5] : [])
+        .frame(width: 100)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isSelected ? .thinMaterial : .ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(
+                            isSelected ? 
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) : 
+                                LinearGradient(
+                                    colors: [.gray.opacity(0.3), .gray.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                            lineWidth: isSelected ? 2 : 1
+                        )
                 )
         )
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }
 

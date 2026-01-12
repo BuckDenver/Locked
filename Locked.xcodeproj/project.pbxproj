@@ -52,7 +52,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				ShieldAssets.xcassets,
 			);
 			target = CAD291C52DFB31C800B3336C /* LockedShield */;
 		};

@@ -4,7 +4,6 @@
 //
 //  Created by Brandon Scott on 2025-06-11.
 //
-
 import SwiftUI
 import CoreNFC
 import SFSymbolsPicker
@@ -14,8 +13,8 @@ import ManagedSettings
 struct LockedView: View {
     @EnvironmentObject private var appLocker: AppLocker
     @EnvironmentObject private var profileManager: ProfileManager
-    @EnvironmentObject private var snoozeManager: SnoozeManager
     @StateObject private var nfcReader = NFCReader()
+    @StateObject private var timerManager = TimerManager()
     private let tagPhrase = "LOCKED-IS-GREAT"
     
     @State private var showWrongTagAlert = false
@@ -23,11 +22,7 @@ struct LockedView: View {
     @State private var nfcWriteSuccess = false
     @State private var showStartSessionWarning = false
     @State private var showSessionStartOptions = false
-    @State private var showQuickLockOptions = false
-    @State private var showSettings = false
-    @State private var snoozeTimer: Timer?
-    @State private var currentTime = Date()
-    @State private var countdownTimer: Timer?
+    @State private var showTimerLock = false
     
     private var isLocking : Bool {
         return appLocker.isLocking
@@ -37,107 +32,72 @@ struct LockedView: View {
         NavigationView {
             GeometryReader { geometry in
                 ZStack {
-                    // Background color based on state
+                    // Modern gradient background
                     ZStack {
-                        Color("NonBlockingBackground")
-                            .opacity(!isLocking && !snoozeManager.isSnoozed ? 1 : 0)
-                        Color("BlockingBackground")
-                            .opacity(isLocking && !snoozeManager.isSnoozed ? 1 : 0)
-                        Color.orange.opacity(0.3) // Snooze background
-                            .opacity(snoozeManager.isSnoozed ? 1 : 0)
+                        LinearGradient(
+                            colors: isLocking ? 
+                                [Color(red: 0.8, green: 0.2, blue: 0.2), Color(red: 0.5, green: 0.1, blue: 0.1)] :
+                                [Color(red: 0.2, green: 0.7, blue: 0.4), Color(red: 0.1, green: 0.5, blue: 0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     }
                     .ignoresSafeArea()
-                    .animation(.easeInOut(duration: 0.5), value: isLocking)
-                    .animation(.easeInOut(duration: 0.5), value: snoozeManager.isSnoozed)
+                    .animation(.easeInOut(duration: 0.6), value: isLocking)
 
-                    // Main content - three different views
+                    // Lock button layer, centered
                     Group {
-                        if snoozeManager.isSnoozed {
-                            snoozeView(geometry: geometry)
-                        } else if isLocking {
+                        if isLocking {
                             lockOrUnlockButton(geometry: geometry)
                         } else {
                             lockOrUnlockButton(geometry: geometry)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .offset(y: snoozeManager.isSnoozed ? 0 : -geometry.size.height * 0.15)
+                    .offset(y: -geometry.size.height * 0.20)
                     .transition(.opacity)
-                    .animation(.spring(), value: isLocking)
-                    .animation(.spring(), value: snoozeManager.isSnoozed)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.7), value: isLocking)
 
-                    // Profiles strip layer at bottom when unlocked (hide when snoozed)
-                    if !isLocking && !snoozeManager.isSnoozed {
-                        ProfilesPicker(profileManager: profileManager)
-                            .frame(height: geometry.size.height / 2)
-                            .position(x: geometry.size.width / 2,
-                                      y: geometry.size.height * 1)
+                    // Profiles strip layer at bottom when unlocked
+                    if !isLocking {
+                        VStack {
+                            Spacer()
+                            ProfilesPicker(profileManager: profileManager)
+                                .padding(.top, 20)
+                        }
+                        .ignoresSafeArea(edges: .bottom)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
             }
             .onAppear {
-                // Check authorization status
-                appLocker.checkAuthorizationStatus()
-                
-                // Start countdown timer if there's an active timer
-                if isLocking && appLocker.timerEndDate != nil {
-                    startCountdownTimer()
-                }
-                
-                // Restart snooze timer if snooze is active
-                if snoozeManager.isSnoozed && snoozeManager.snoozeTimeRemaining > 0 {
-                    restartSnoozeTimer()
-                }
-                
-                // Listen for snooze requests from shield
-                NotificationCenter.default.addObserver(
-                    forName: NSNotification.Name("ActivateSnoozeFromShield"),
-                    object: nil,
-                    queue: .main
-                ) { [self] _ in
-                    NSLog("📱 Activating snooze from shield request")
-                    startSnooze()
-                }
-            }
-            .onChange(of: appLocker.timerEndDate) { oldValue, newValue in
-                // Start countdown when timer is set
-                if newValue != nil && isLocking {
-                    startCountdownTimer()
-                } else if newValue == nil {
-                    stopCountdownTimer()
-                }
-            }
-            .onChange(of: isLocking) { oldValue, newValue in
-                // Start/stop countdown when locking state changes
-                if newValue && appLocker.timerEndDate != nil {
-                    startCountdownTimer()
-                } else if !newValue {
-                    stopCountdownTimer()
-                }
+                setupTimerCallback()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if !isLocking && !snoozeManager.isSnoozed {
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                showQuickLockOptions = true
-                            }) {
+                    if !isLocking {
+                        Button {
+                            showTimerLock = true
+                        } label: {
+                            HStack(spacing: 6) {
                                 Image(systemName: "timer")
-                                    .foregroundColor(.primary)
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Timer")
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
                             }
-                            
-                            Button(action: {
-                                showSettings = true
-                            }) {
-                                Image(systemName: "gearshape")
-                                    .foregroundColor(.primary)
-                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(.ultraThinMaterial)
+                            )
                         }
                     }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !isLocking && !snoozeManager.isSnoozed {
+                    if !isLocking {
                         createTagButton
                     }
                 }
@@ -169,101 +129,83 @@ struct LockedView: View {
                     showStartSessionWarning = false
                 }
             } message: {
-                Text("Remember: You'll need your NFC tag to unlock!")
+                Text("Make sure you have access to your NFC tag. You will not be able to unlock without it.")
             }
-            .sheet(isPresented: $showQuickLockOptions) {
-                QuickLockTimerView(
-                    appLocker: appLocker,
-                    profileManager: profileManager
-                )
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .environmentObject(snoozeManager)
+            .fullScreenCover(isPresented: $showTimerLock) {
+                timerLockSheet
             }
         }
     }
     
     @ViewBuilder
     private func lockOrUnlockButton(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 0) {
-            Spacer()
+        VStack(spacing: 24) {
+            Text(isLocking ? "Tap To Unlock" : "Tap To Lock")
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+
+            Button(action: {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                    onPrimaryTap()
+                }
+            }) {
+                Image(isLocking ? "RedIcon" : "GreenIcon")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: geometry.size.height / 3)
+                    .shadow(color: .black.opacity(0.3), radius: 15, x: 0, y: 8)
+            }
+            .scaleEffect(isLocking ? 1.0 : 1.05)
+            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: isLocking)
             
-            VStack(spacing: 24) {
-                // Lock icon button - centered
-                Button(action: {
-                    withAnimation(.spring()) {
-                        onPrimaryTap()
+            // Timer display when active - now below lock icon
+            if isLocking && timerManager.isTimerActive {
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 20, weight: .semibold))
+                        Text(timerManager.remainingTimeString)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                     }
-                }) {
-                    Image(isLocking ? "RedIcon" : "GreenIcon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(height: geometry.size.height / 3)
-                }
-                
-                // Text content grouped below icon
-                VStack(spacing: 16) {
-                    // Main heading
-                    Text(isLocking ? "Tap To Unlock" : "Tap To Lock")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                    )
                     
-                    // Subheading / additional options
-                    VStack(spacing: 12) {
-                        // Show snooze option when locked
-                        if isLocking {
-                            if snoozeManager.canSnooze {
-                                Button("Unlock for \(formatDuration(snoozeManager.snoozeDuration)) (\(snoozeManager.snoozesRemaining) left today)") {
-                                    startSnooze()
-                                }
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
-                            } else {
-                                Text("No snoozes remaining today")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                        }
-                        
-                        if !isLocking {
-                            Button("Lock Without NFC") {
-                                showStartSessionWarning = true
-                            }
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                        }
-                    }
+                    Text("Time Remaining")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
                 }
+                .padding(.top, 8)
             }
             
-            Spacer()
-            
-            // Timer countdown at bottom when locked
-            if isLocking, let endDate = appLocker.timerEndDate {
-                let timeRemaining = endDate.timeIntervalSince(currentTime)
-                if timeRemaining > 0 {
-                    VStack(spacing: 8) {
-                        Text("Time Remaining")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                        
-                        Text(formatTimeRemaining(timeRemaining))
-                            .font(.system(size: 48, weight: .bold))
-                            .foregroundColor(.white)
-                            .monospacedDigit()
+            if !isLocking {
+                Button {
+                    showStartSessionWarning = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.slash")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Lock Without NFC")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                     }
-                    .padding(.bottom, 60)
-                    .onAppear {
-                        startCountdownTimer()
-                    }
-                    .onDisappear {
-                        stopCountdownTimer()
-                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                    )
                 }
+                .padding(.top, 8)
             }
         }
-        .frame(maxHeight: .infinity)
         .id(isLocking)
     }
     
@@ -303,9 +245,19 @@ struct LockedView: View {
         Button(action: {
             showCreateTagAlert = true
         }) {
-            Text("Register Tag")
-                .bold()
-                .foregroundColor(.primary)
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                Text("New Lock")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+            )
         }
         .disabled(!NFCNDEFReaderSession.readingAvailable)
     }
@@ -317,255 +269,21 @@ struct LockedView: View {
         }
     }
     
-    // MARK: - Snooze Functions
-    
-    @ViewBuilder
-    private func snoozeView(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 40) {
-            Spacer()
-            
-            // Timer icon with pulsing animation
-            ZStack {
-                Circle()
-                    .fill(Color.orange.opacity(0.2))
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(pulseAnimation ? 1.1 : 1.0)
-                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: pulseAnimation)
-                
-                Image(systemName: "timer")
-                    .font(.system(size: 80, weight: .light))
-                    .foregroundColor(.orange)
-            }
-            .onAppear {
-                pulseAnimation = true
-            }
-            
-            // "Snoozed" title
-            Text("Snoozed")
-                .font(.system(size: 48, weight: .bold))
-                .foregroundColor(.primary)
-            
-            // Countdown timer
-            Text(timeString(from: snoozeManager.snoozeTimeRemaining))
-                .font(.system(size: 72, weight: .semibold))
-                .foregroundColor(.primary)
-                .monospacedDigit()
-            
-            // Description
-            VStack(spacing: 8) {
-                Text("Apps are temporarily unlocked")
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary.opacity(0.9))
-                
-                Text("They will lock again when the timer expires")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-            
-            Spacer()
-            
-            // Cancel snooze button
-            Button(action: {
-                endSnooze()
-            }) {
-                Text("End Snooze Early")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.red.opacity(0.8))
-                    )
-            }
-            .padding(.bottom, 50)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    @State private var pulseAnimation = false
-    
-    private func startSnooze() {
-        // Temporarily unlock the apps (keeping timer intact)
-        appLocker.temporaryUnlock(for: profileManager.currentProfile)
-        
-        // Set snooze state in shared manager (uses custom duration)
-        snoozeManager.startSnooze()
-        
-        // Invalidate any existing timer
-        snoozeTimer?.invalidate()
-        
-        // Start countdown timer (updates every second)
-        snoozeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] _ in
-            let newTime = snoozeManager.snoozeTimeRemaining - 1
-            snoozeManager.updateTimeRemaining(newTime)
-            
-            if newTime <= 0 {
-                endSnooze()
-            }
-        }
-        
-        // Schedule notification for when snooze ends - this can wake the app
-        let snoozeEndContent = UNMutableNotificationContent()
-        snoozeEndContent.title = "Snooze Ended"
-        snoozeEndContent.body = "Apps are locked again. Tap to view."
-        snoozeEndContent.sound = .default
-        snoozeEndContent.categoryIdentifier = "SNOOZE_END"
-        snoozeEndContent.userInfo = ["action": "relockApps"]
-        
-        let snoozeEndTrigger = UNTimeIntervalNotificationTrigger(
-            timeInterval: snoozeManager.snoozeDuration,
-            repeats: false
-        )
-        
-        let snoozeEndRequest = UNNotificationRequest(
-            identifier: "snooze-end",
-            content: snoozeEndContent,
-            trigger: snoozeEndTrigger
-        )
-        
-        UNUserNotificationCenter.current().add(snoozeEndRequest) { error in
-            if let error = error {
-                NSLog("❌ Failed to schedule snooze end notification: \(error)")
-            } else {
-                NSLog("✅ Scheduled snooze end notification for \(self.snoozeManager.snoozeDuration) seconds from now")
-            }
-        }
-        
-        // Send immediate notification that snooze started
-        let startContent = UNMutableNotificationContent()
-        startContent.title = "Snooze Started"
-        startContent.body = "Apps unlocked for \(formatDuration(snoozeManager.snoozeDuration))"
-        startContent.sound = .default
-        
-        let startRequest = UNNotificationRequest(
-            identifier: "snooze-start",
-            content: startContent,
-            trigger: nil
-        )
-        
-        UNUserNotificationCenter.current().add(startRequest)
-        
-        NSLog("⏰ Snooze timer started for \(snoozeManager.snoozeDuration) seconds")
-    }
-    
-    private func endSnooze() {
-        snoozeTimer?.invalidate()
-        snoozeTimer = nil
-        
-        // Clear snooze state in shared manager
-        snoozeManager.endSnooze()
-        
-        // Re-lock the apps
-        appLocker.startSessionManually(for: profileManager.currentProfile)
-        
-        // Send notification
-        let content = UNMutableNotificationContent()
-        content.title = "Snooze Ended"
-        content.body = "Apps are locked again"
-        content.sound = .default
-        
-        let request = UNNotificationRequest(
-            identifier: "snooze-end",
-            content: content,
-            trigger: nil
-        )
-        
-        UNUserNotificationCenter.current().add(request)
-        
-        NSLog("⏰ Snooze timer ended - re-locking apps")
-    }
-    
-    private func restartSnoozeTimer() {
-        // Make sure apps are unlocked
-        appLocker.temporaryUnlock(for: profileManager.currentProfile)
-        
-        // Invalidate any existing timer
-        snoozeTimer?.invalidate()
-        
-        // Start countdown timer (updates every second)
-        snoozeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [self] _ in
-            let newTime = snoozeManager.snoozeTimeRemaining - 1
-            snoozeManager.updateTimeRemaining(newTime)
-            
-            if newTime <= 0 {
-                endSnooze()
-            }
-        }
-        
-        NSLog("⏰ Snooze timer restarted with \(snoozeManager.snoozeTimeRemaining) seconds remaining")
-    }
-    
-    private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-    
-    private func formatDuration(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
-        if minutes < 60 {
-            return minutes == 1 ? "1 Minute" : "\(minutes) Minutes"
-        } else {
-            let hours = minutes / 60
-            let remainingMinutes = minutes % 60
-            if remainingMinutes == 0 {
-                return hours == 1 ? "1 Hour" : "\(hours) Hours"
-            } else {
-                return "\(hours)h \(remainingMinutes)m"
-            }
-        }
-    }
-    
-    // MARK: - Countdown Timer Functions
-    
-    private func startCountdownTimer() {
-        // Update immediately
-        currentTime = Date()
-        
-        NSLog("⏲️ Starting countdown timer. Timer end date: \(appLocker.timerEndDate?.description ?? "none")")
-        
-        // Then update every second
-        countdownTimer?.invalidate()
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            Task { @MainActor in
-                self.currentTime = Date()
-                
-                // Check if timer has expired
-                if let endDate = self.appLocker.timerEndDate {
-                    let timeRemaining = endDate.timeIntervalSince(Date())
-                    
-                    // Log every 30 seconds
-                    if Int(timeRemaining) % 30 == 0 {
-                        NSLog("⏲️ Timer check: \(Int(timeRemaining)) seconds remaining")
-                    }
-                    
-                    if endDate <= Date() {
-                        NSLog("⏰ Timer expired - automatically unlocking apps!")
-                        self.stopCountdownTimer()
-                        self.appLocker.endSession(for: self.profileManager.currentProfile)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func stopCountdownTimer() {
-        countdownTimer?.invalidate()
-        countdownTimer = nil
-    }
-    
-    private func formatTimeRemaining(_ timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) / 60 % 60
-        let seconds = Int(timeInterval) % 60
-        
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            return String(format: "%d:%02d", minutes, seconds)
+    private func setupTimerCallback() {
+        timerManager.onTimerExpired = { [weak appLocker, weak profileManager] in
+            guard let appLocker = appLocker, let profileManager = profileManager else { return }
+            // Automatically unlock when timer expires
+            appLocker.endSession(for: profileManager.currentProfile)
         }
     }
 }
+
+extension LockedView {
+    var timerLockSheet: some View {
+        TimerLockView()
+            .environmentObject(appLocker)
+            .environmentObject(profileManager)
+            .environmentObject(timerManager)
+    }
+}
+
