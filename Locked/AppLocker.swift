@@ -35,6 +35,22 @@ class AppLocker: ObservableObject {
         }
     }
     
+    /// Prevents the Locked app (and optionally other apps) from being deleted
+    func preventAppDeletion() {
+        guard isAuthorized else { return }
+        
+        // Only prevent app deletions when actively locking
+        store.application.denyAppRemoval = isLocking
+        
+        print("🔒 App deletion prevention: \(isLocking ? "enabled" : "disabled")")
+    }
+    
+    /// Allows apps to be deleted again (optional - only if you want to disable protection)
+    func allowAppDeletion() {
+        store.application.denyAppRemoval = false
+        print("🔓 App deletion prevention disabled")
+    }
+    
     func startSessionWithNFC(for profile: Profile) {
         guard isAuthorized else {
             print("Not authorized to lock apps")
@@ -72,6 +88,9 @@ class AppLocker: ObservableObject {
     }
     
     func applyLockingSettings(for profile: Profile) {
+        // Only prevent app deletion during active locking sessions
+        store.application.denyAppRemoval = isLocking
+        
         if isLocking {
             if profile.isAllowListMode {
                 NSLog("Allow List Mode: Allowing only \(profile.appTokens.count) apps")
